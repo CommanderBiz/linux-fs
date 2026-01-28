@@ -11,7 +11,7 @@ set -u  # Exit on undefined variable
 
 # --- CONFIGURATION ---
 # PASTE YOUR RELEASE LINK HERE vvv
-RELEASE_URL="https://github.com/CommanderBiz/linux-fs/releases/download/u0.2/ubuntu-fs.tar.xz"
+RELEASE_URL="https://github.com/CommanderBiz/linux-fs/releases/download/u0.3/ubuntu-fs.tar.xz"
 CHECKSUM_URL=""  # Optional: Add SHA256 checksum URL for verification
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -312,7 +312,7 @@ if [ -f /root/.show_welcome ]; then
     echo -e "╚════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "${BLUE}Quick Start:${NC}"
-    echo "  • Install desktop: /root/complete_install.sh"
+    echo "  • Choose desktop:  /root/choose_desktop.sh"
     echo "  • Update system:   apt update && apt upgrade"
     echo "  • Exit Ubuntu:     exit"
     echo ""
@@ -349,14 +349,14 @@ show_completion_message() {
     echo ""
     echo -e "${BLUE}Next Steps:${NC}"
     echo ""
-    echo "  1. Start Ubuntu:"
-    echo -e "     ${YELLOW}./$LAUNCHER_SCRIPT${NC}"
-    echo ""
-    echo "  2. Inside Ubuntu, install desktop (optional):"
-    echo -e "     ${YELLOW}/root/complete_install.sh${NC}"
-    echo ""
-    echo "  3. After desktop installation, start VNC:"
-    echo -e "     ${YELLOW}vncserver${NC}"
+  1. Start Ubuntu:
+     ${YELLOW}./$LAUNCHER_SCRIPT${NC}
+
+  2. Inside Ubuntu, install desktop (optional):
+     ${YELLOW}/root/choose_desktop.sh${NC}
+
+  3. After desktop installation, start VNC:
+     ${YELLOW}vncserver${NC}
     echo ""
     echo -e "${BLUE}Tips:${NC}"
     echo "  • VNC will be accessible at localhost:5901"
