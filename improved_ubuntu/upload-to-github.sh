@@ -74,13 +74,13 @@ check_files() {
     
     local missing=()
     
-    if [ ! -f "improved-ubuntu.tar.xz" ]; then
-        missing+=("improved-ubuntu.tar.xz")
+    if [ ! -f "ubuntu-fs.tar.xz" ]; then
+        missing+=("ubuntu-fs.tar.xz")
     fi
     
-    if [ ! -f "improved-ubuntu.tar.xz.sha256" ]; then
+    if [ ! -f "ubuntu-fs.tar.xz.sha256" ]; then
         log_warning "Checksum file not found, generating..."
-        sha256sum improved-ubuntu.tar.xz > improved-ubuntu.tar.xz.sha256
+        sha256sum ubuntu-fs.tar.xz > ubuntu-fs.tar.xz.sha256
     fi
     
     if [ ${#missing[@]} -ne 0 ]; then
@@ -94,8 +94,8 @@ check_files() {
     # Show file info
     echo ""
     log_info "Files to upload:"
-    echo "  - improved-ubuntu.tar.xz ($(du -h improved-ubuntu.tar.xz | cut -f1))"
-    echo "  - improved-ubuntu.tar.xz.sha256"
+    echo "  - ubuntu-fs.tar.xz ($(du -h ubuntu-fs.tar.xz | cut -f1))"
+    echo "  - ubuntu-fs.tar.xz.sha256"
     if [ -f "install.sh" ]; then
         echo "  - install.sh (installer script)"
     fi
@@ -177,7 +177,7 @@ chmod +x install.sh
 ## Verification
 
 \`\`\`bash
-sha256sum -c improved-ubuntu.tar.xz.sha256
+sha256sum -c ubuntu-fs.tar.xz.sha256
 \`\`\`
 
 ## System Requirements
@@ -212,14 +212,14 @@ create_release() {
         --repo "$REPO" \
         --title "$TITLE" \
         --notes "$DESCRIPTION" \
-        improved-ubuntu.tar.xz \
-        improved-ubuntu.tar.xz.sha256 \
+        ubuntu-fs.tar.xz \
+        ubuntu-fs.tar.xz.sha256 \
         $([ -f "install.sh" ] && echo "install.sh")
     
     if [ $? -eq 0 ]; then
         log_success "Release created successfully! ✓"
         echo ""
-        RELEASE_URL="https://github.com/$REPO/releases/download/$VERSION/improved-ubuntu.tar.xz"
+        RELEASE_URL="https://github.com/$REPO/releases/download/$VERSION/ubuntu-fs.tar.xz"
         log_success "Download URL: $RELEASE_URL"
         echo ""
         log_info "Next steps:"
@@ -260,8 +260,8 @@ update_existing_release() {
     gh release upload "$TAG" \
         --repo "$REPO" \
         --clobber \
-        improved-ubuntu.tar.xz \
-        improved-ubuntu.tar.xz.sha256 \
+        ubuntu-fs.tar.xz \
+        ubuntu-fs.tar.xz.sha256 \
         $([ -f "install.sh" ] && echo "install.sh")
     
     if [ $? -eq 0 ]; then

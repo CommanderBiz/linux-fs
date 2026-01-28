@@ -4,8 +4,8 @@ This is a pre-built Ubuntu Noble (24.04 LTS) ARM64 root filesystem for use with 
 
 ## Files
 
-- `improved-ubuntu.tar.xz` - Compressed root filesystem
-- `improved-ubuntu.tar.xz.sha256` - SHA256 checksum for verification
+- `ubuntu-fs.tar.xz` - Compressed root filesystem
+- `ubuntu-fs.tar.xz.sha256` - SHA256 checksum for verification
 - `install.sh` - Termux installer script
 
 ## Installation
@@ -30,7 +30,7 @@ This is a pre-built Ubuntu Noble (24.04 LTS) ARM64 root filesystem for use with 
 
 Verify the download integrity:
 ```bash
-sha256sum -c improved-ubuntu.tar.xz.sha256
+sha256sum -c ubuntu-fs.tar.xz.sha256
 ```
 
 ## Requirements
