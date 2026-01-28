@@ -14,7 +14,7 @@ set -u  # Exit on undefined variable
 # --- CONFIGURATION ---
 ARCH="arm64"
 ROOTFS_DIR="ubuntu-rootfs"
-OUTPUT_FILE="ubuntu-fs.tar.xz"
+OUTPUT_FILE="improved-ubuntu.tar.xz"
 UBUNTU_MIRROR="http://ports.ubuntu.com/ubuntu-ports/"
 UBUNTU_RELEASE="noble"
 
@@ -311,15 +311,17 @@ This is a pre-built Ubuntu Noble (24.04 LTS) ARM64 root filesystem for use with 
 
 ## Files
 
-- `ubuntu-fs.tar.xz` - Compressed root filesystem
-- `ubuntu-fs.tar.xz.sha256` - SHA256 checksum for verification
+- `improved-ubuntu.tar.xz` - Compressed root filesystem
+- `improved-ubuntu.tar.xz.sha256` - SHA256 checksum for verification
 - `install.sh` - Termux installer script
 
 ## Installation
 
 1. Install Termux from F-Droid
-2. Run the installer:
+2. Download and run the installer:
    ```bash
+   pkg install wget -y
+   wget https://raw.githubusercontent.com/CommanderBiz/linux-fs/main/improved_ubuntu/install.sh
    bash install.sh
    ```
 3. Start Ubuntu:
@@ -335,7 +337,7 @@ This is a pre-built Ubuntu Noble (24.04 LTS) ARM64 root filesystem for use with 
 
 Verify the download integrity:
 ```bash
-sha256sum -c ubuntu-fs.tar.xz.sha256
+sha256sum -c improved-ubuntu.tar.xz.sha256
 ```
 
 ## Requirements

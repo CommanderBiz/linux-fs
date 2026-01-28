@@ -74,18 +74,18 @@ check_files() {
     
     local missing=()
     
-    if [ ! -f "ubuntu-fs.tar.xz" ]; then
-        missing+=("ubuntu-fs.tar.xz")
+    if [ ! -f "improved-ubuntu.tar.xz" ]; then
+        missing+=("improved-ubuntu.tar.xz")
     fi
     
-    if [ ! -f "ubuntu-fs.tar.xz.sha256" ]; then
+    if [ ! -f "improved-ubuntu.tar.xz.sha256" ]; then
         log_warning "Checksum file not found, generating..."
-        sha256sum ubuntu-fs.tar.xz > ubuntu-fs.tar.xz.sha256
+        sha256sum improved-ubuntu.tar.xz > improved-ubuntu.tar.xz.sha256
     fi
     
     if [ ${#missing[@]} -ne 0 ]; then
         log_error "Missing required files: ${missing[*]}"
-        log_info "Please run install_ubuntu_improved.sh first"
+        log_info "Please run install_ubuntu.sh first"
         exit 1
     fi
     
@@ -94,10 +94,10 @@ check_files() {
     # Show file info
     echo ""
     log_info "Files to upload:"
-    echo "  - ubuntu-fs.tar.xz ($(du -h ubuntu-fs.tar.xz | cut -f1))"
-    echo "  - ubuntu-fs.tar.xz.sha256"
-    if [ -f "install_improved.sh" ]; then
-        echo "  - install_improved.sh (installer script)"
+    echo "  - improved-ubuntu.tar.xz ($(du -h improved-ubuntu.tar.xz | cut -f1))"
+    echo "  - improved-ubuntu.tar.xz.sha256"
+    if [ -f "install.sh" ]; then
+        echo "  - install.sh (installer script)"
     fi
     echo ""
 }
@@ -162,9 +162,9 @@ get_release_notes() {
 ## Installation
 
 \`\`\`bash
-wget https://github.com/$REPO/releases/download/$VERSION/install_improved.sh
-chmod +x install_improved.sh
-./install_improved.sh
+wget https://github.com/$REPO/releases/download/$VERSION/install.sh
+chmod +x install.sh
+./install.sh
 \`\`\`
 
 ## What's Included
@@ -177,7 +177,7 @@ chmod +x install_improved.sh
 ## Verification
 
 \`\`\`bash
-sha256sum -c ubuntu-fs.tar.xz.sha256
+sha256sum -c improved-ubuntu.tar.xz.sha256
 \`\`\`
 
 ## System Requirements
@@ -212,20 +212,20 @@ create_release() {
         --repo "$REPO" \
         --title "$TITLE" \
         --notes "$DESCRIPTION" \
-        ubuntu-fs.tar.xz \
-        ubuntu-fs.tar.xz.sha256 \
-        $([ -f "install_improved.sh" ] && echo "install_improved.sh")
+        improved-ubuntu.tar.xz \
+        improved-ubuntu.tar.xz.sha256 \
+        $([ -f "install.sh" ] && echo "install.sh")
     
     if [ $? -eq 0 ]; then
         log_success "Release created successfully! ✓"
         echo ""
-        RELEASE_URL="https://github.com/$REPO/releases/download/$VERSION/ubuntu-fs.tar.xz"
+        RELEASE_URL="https://github.com/$REPO/releases/download/$VERSION/improved-ubuntu.tar.xz"
         log_success "Download URL: $RELEASE_URL"
         echo ""
         log_info "Next steps:"
-        echo "  1. Update install_improved.sh with the release URL:"
+        echo "  1. Update install.sh with the release URL:"
         echo "     RELEASE_URL=\"$RELEASE_URL\""
-        echo "  2. Distribute install_improved.sh to users"
+        echo "  2. Distribute install.sh to users"
         echo ""
     else
         log_error "Failed to create release"
@@ -260,9 +260,9 @@ update_existing_release() {
     gh release upload "$TAG" \
         --repo "$REPO" \
         --clobber \
-        ubuntu-fs.tar.xz \
-        ubuntu-fs.tar.xz.sha256 \
-        $([ -f "install_improved.sh" ] && echo "install_improved.sh")
+        improved-ubuntu.tar.xz \
+        improved-ubuntu.tar.xz.sha256 \
+        $([ -f "install.sh" ] && echo "install.sh")
     
     if [ $? -eq 0 ]; then
         log_success "Files uploaded successfully! ✓"

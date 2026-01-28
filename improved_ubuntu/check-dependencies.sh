@@ -67,7 +67,7 @@ echo "========================================"
 
 if $all_good; then
     echo -e "${GREEN}All required dependencies are installed!${NC}"
-    echo "You can run ./install_ubuntu_improved.sh"
+    echo "You can run ./install_ubuntu.sh"
 else
     echo -e "${YELLOW}Some dependencies are missing.${NC}"
     echo ""
