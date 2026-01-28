@@ -349,14 +349,14 @@ show_completion_message() {
     echo ""
     echo -e "${BLUE}Next Steps:${NC}"
     echo ""
-  1. Start Ubuntu:
-     ${YELLOW}./$LAUNCHER_SCRIPT${NC}
-
-  2. Inside Ubuntu, install desktop (optional):
-     ${YELLOW}/root/choose_desktop.sh${NC}
-
-  3. After desktop installation, start VNC:
-     ${YELLOW}vncserver${NC}
+    echo "  1. Start Ubuntu:"
+    echo -e "     ${YELLOW}./$LAUNCHER_SCRIPT${NC}"
+    echo ""
+    echo "  2. Inside Ubuntu, install desktop (optional):"
+    echo -e "     ${YELLOW}/root/choose_desktop.sh${NC}"
+    echo ""
+    echo "  3. After desktop installation, start VNC:"
+    echo -e "     ${YELLOW}vncserver${NC}"
     echo ""
     echo -e "${BLUE}Tips:${NC}"
     echo "  • VNC will be accessible at localhost:5901"
