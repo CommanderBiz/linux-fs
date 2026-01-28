@@ -156,7 +156,7 @@ echo "[*] Updating package lists..."
 # May fail under QEMU - that's expected
 apt-get update || {
     echo "[WARNING] apt-get update failed (expected in QEMU). Continuing..."
-    return 0
+    true
 }
 
 # --- Neutralize Systemd ---
@@ -222,13 +222,17 @@ copy_post_install() {
     local found=false
     local search_paths=(
         "./complete_install.sh"
+        "$(dirname "$0")/complete_install.sh"
         "./ubuntu/complete_install.sh"
         "../complete_install.sh"
+        "$HOME/complete_install.sh"
     )
     
     for path in "${search_paths[@]}"; do
         if [ -f "$path" ]; then
             log_success "Found complete_install.sh at: $path"
+            # Ensure /root directory exists
+            sudo mkdir -p "./$ROOTFS_DIR/root"
             sudo cp "$path" "./$ROOTFS_DIR/root/complete_install.sh"
             sudo chmod +x "./$ROOTFS_DIR/root/complete_install.sh"
             found=true
@@ -237,8 +241,38 @@ copy_post_install() {
     done
     
     if [ "$found" = false ]; then
-        log_warning "complete_install.sh not found. Desktop installation will not be available."
+        log_error "complete_install.sh not found!"
         log_info "Searched paths: ${search_paths[*]}"
+        log_warning "Desktop installation will not be available in the final image."
+        echo ""
+        log_info "To fix this:"
+        echo "  1. Place complete_install.sh in the same directory as this script"
+        echo "  2. Or specify the path when prompted"
+        echo ""
+        read -p "Do you have complete_install.sh in another location? (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            read -p "Enter the full path to complete_install.sh: " custom_path
+            if [ -f "$custom_path" ]; then
+                log_success "Found complete_install.sh at: $custom_path"
+                # Ensure /root directory exists
+                sudo mkdir -p "./$ROOTFS_DIR/root"
+                sudo cp "$custom_path" "./$ROOTFS_DIR/root/complete_install.sh"
+                sudo chmod +x "./$ROOTFS_DIR/root/complete_install.sh"
+                found=true
+            else
+                log_error "File not found at: $custom_path"
+            fi
+        fi
+    fi
+    
+    if [ "$found" = true ]; then
+        # Verify it was copied successfully
+        if [ -f "./$ROOTFS_DIR/root/complete_install.sh" ]; then
+            log_success "complete_install.sh successfully added to rootfs ✓"
+        else
+            log_error "Failed to copy complete_install.sh to rootfs"
+        fi
     fi
 }
 
