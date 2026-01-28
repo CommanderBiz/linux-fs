@@ -11,7 +11,7 @@ set -u  # Exit on undefined variable
 
 # --- CONFIGURATION ---
 # PASTE YOUR RELEASE LINK HERE vvv
-RELEASE_URL="https://github.com/CommanderBiz/andronix-lab/releases/download/V0.1/ubuntu-fs.tar.xz"
+RELEASE_URL="https://github.com/CommanderBiz/linux-fs/releases/download/u0.1/ubuntu-fs.tar.xz"
 CHECKSUM_URL=""  # Optional: Add SHA256 checksum URL for verification
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

@@ -53,22 +53,36 @@ check_root() {
 check_dependencies() {
     log_info "Checking dependencies..."
     local missing_deps=()
+    local missing_packages=()
     
-    for dep in debootstrap proot tar xz-utils wget; do
-        if ! command -v "$dep" &> /dev/null; then
-            missing_deps+=("$dep")
+    # Check for commands (some package names differ from command names)
+    local cmd_checks=(
+        "debootstrap:debootstrap"
+        "proot:proot"
+        "tar:tar"
+        "xz:xz-utils"
+        "wget:wget"
+    )
+    
+    for check in "${cmd_checks[@]}"; do
+        local cmd="${check%%:*}"
+        local pkg="${check##*:}"
+        if ! command -v "$cmd" &> /dev/null; then
+            missing_deps+=("$cmd")
+            missing_packages+=("$pkg")
         fi
     done
     
     # Check for qemu-static
     local qemu_bin="qemu-aarch64-static"
     if [ ! -f "/usr/bin/$qemu_bin" ]; then
-        missing_deps+=("qemu-user-static")
+        missing_deps+=("$qemu_bin")
+        missing_packages+=("qemu-user-static")
     fi
     
     if [ ${#missing_deps[@]} -ne 0 ]; then
-        log_error "Missing dependencies: ${missing_deps[*]}"
-        log_info "Install them with: sudo apt install ${missing_deps[*]}"
+        log_error "Missing commands: ${missing_deps[*]}"
+        log_info "Install them with: sudo apt install ${missing_packages[*]}"
         exit 1
     fi
     

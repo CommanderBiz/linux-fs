@@ -1,0 +1,6 @@
+ubuntu-rootfs/
+*.tar.xz
+*.tar.xz.sha256
+*.log
+wget-log*
+GEMINI.md
