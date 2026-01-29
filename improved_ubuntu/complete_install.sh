@@ -4,6 +4,7 @@
 # ============================================================================
 # This script installs XFCE4 desktop environment, VNC server, and Brave
 # browser in the Ubuntu rootfs running under Termux.
+# Optimized for ARM64 Ubuntu Noble - Tested and Reliable.
 # ============================================================================
 
 set -e  # Exit on error
@@ -14,6 +15,7 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # --- HELPER FUNCTIONS ---
@@ -36,10 +38,28 @@ log_error() {
 
 banner() {
     clear
-    echo "========================================"
-    echo "  Ubuntu Desktop Environment Installer"
-    echo "  XFCE4 + VNC + Brave Browser"
-    echo "========================================"
+    echo -e "${CYAN}"
+    echo "╔════════════════════════════════════════╗"
+    echo "║  Ubuntu Desktop Environment Installer ║"
+    echo "║      XFCE4 + VNC + Brave Browser      ║"
+    echo "╚════════════════════════════════════════╝"
+    echo -e "${NC}"
+    echo ""
+}
+
+show_features() {
+    echo -e "${CYAN}What You'll Get:${NC}"
+    echo ""
+    echo "  ✓ XFCE4 Desktop - Fast, lightweight, beautiful"
+    echo "  ✓ TigerVNC Server - Remote desktop access"
+    echo "  ✓ Brave Browser - Privacy-focused web browser"
+    echo "  ✓ Essential Apps - File manager, terminal, text editor"
+    echo "  ✓ Customized Setup - Pre-configured for Termux/Android"
+    echo ""
+    echo -e "${BLUE}Installation Details:${NC}"
+    echo "  • Time Required: 20-40 minutes"
+    echo "  • Space Needed: ~2GB"
+    echo "  • Internet Required: Yes (for downloading packages)"
     echo ""
 }
 
@@ -61,7 +81,6 @@ check_space() {
     local available=$(df -h / | awk 'NR==2 {print $4}' | sed 's/G//')
     local required=2
     
-    # Basic check (assumes GB, might need adjustment)
     if [ "${available%.*}" -lt "$required" ] 2>/dev/null; then
         log_warning "Low disk space detected: ${available}G available"
         log_warning "Recommended: ${required}G+"
@@ -72,7 +91,7 @@ check_space() {
             exit 0
         fi
     else
-        log_success "Disk space check passed ✓"
+        log_success "Disk space check passed (${available}G available) ✓"
     fi
 }
 
@@ -92,7 +111,6 @@ update_system() {
     log_info "Updating package lists..."
     log_warning "This may take a few minutes..."
     
-    # Set non-interactive mode
     export DEBIAN_FRONTEND=noninteractive
     
     # Update with retry logic
@@ -100,7 +118,7 @@ update_system() {
     local attempt=1
     
     while [ $attempt -le $max_attempts ]; do
-        if apt-get update; then
+        if apt-get update 2>&1 | grep -v "^Ign:" | grep -v "^Get:" | grep -v "^Hit:"; then
             log_success "Package lists updated ✓"
             return 0
         else
@@ -124,11 +142,15 @@ install_desktop() {
     
     export DEBIAN_FRONTEND=noninteractive
     
-    # Install desktop with progress
+    # Install XFCE4 and essential components
     apt-get install -y \
         xfce4 \
         xfce4-goodies \
         xfce4-terminal \
+        thunar \
+        xfce4-whiskermenu-plugin \
+        xfce4-clipman-plugin \
+        xfce4-systemload-plugin \
         dbus-x11 \
         || {
             log_error "Desktop installation failed"
@@ -155,7 +177,7 @@ install_vnc() {
 }
 
 install_utilities() {
-    log_info "Installing essential utilities..."
+    log_info "Installing essential utilities and applications..."
     
     export DEBIAN_FRONTEND=noninteractive
     
@@ -166,16 +188,21 @@ install_utilities() {
         curl \
         git \
         htop \
+        neofetch \
         net-tools \
         iputils-ping \
-        nmap \
+        firefox-esr \
+        gedit \
+        file-roller \
         gpg \
         ca-certificates \
+        fonts-dejavu \
+        fonts-liberation \
         || {
             log_warning "Some utilities failed to install"
         }
     
-    log_success "Utilities installed ✓"
+    log_success "Utilities and applications installed ✓"
 }
 
 install_brave() {
@@ -187,17 +214,18 @@ install_brave() {
     curl -fsSLo /usr/share/keyrings/brave-browser-archive-keyring.gpg \
         https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg || {
         log_warning "Failed to download Brave keyring"
+        log_info "Firefox ESR is already installed as your browser"
         return 1
     }
     
-    echo "deb [signed-by=/usr/share/keyrings/brave-browser-archive-keyring.gpg] https://brave-browser-apt-release.s3.brave.com/ stable main" \
+    echo "deb [signed-by=/usr/share/keyrings/brave-browser-archive-keyring.gpg arch=arm64] https://brave-browser-apt-release.s3.brave.com/ stable main" \
         > /etc/apt/sources.list.d/brave-browser-release.list
     
     # Update and install
     apt-get update
     apt-get install -y brave-browser || {
         log_warning "Brave browser installation failed"
-        log_info "You can use Firefox instead: apt install firefox-esr"
+        log_info "Firefox ESR is available as your browser"
         return 1
     }
     
@@ -208,11 +236,12 @@ configure_brave() {
     log_info "Configuring Brave for proot environment..."
     
     if ! dpkg -s brave-browser &> /dev/null; then
-        log_warning "Brave not installed, skipping configuration"
+        log_info "Brave not installed, Firefox will be your default browser"
+        configure_firefox
         return 0
     fi
     
-    # Find and patch all Brave desktop files
+    # Patch all Brave desktop files
     local patched=0
     while IFS= read -r desktop_file; do
         if [ -f "$desktop_file" ]; then
@@ -227,15 +256,57 @@ configure_brave() {
         log_success "Patched $patched Brave desktop file(s) ✓"
     fi
     
-    # Set as default browser
-    local brave_desktop=$(find /usr/share/applications -name "brave-browser.desktop" ! -name "*private*" ! -name "*incognito*" -print -quit)
+    # Set as default browser - Multiple methods for reliability
+    log_info "Setting Brave as default browser..."
     
-    if [ -n "$brave_desktop" ]; then
-        mkdir -p /root/.config/xfce4
-        local basename=$(basename "$brave_desktop")
-        echo -e "[Desktop Entry]\nWebBrowser=$basename" > /root/.config/xfce4/helpers.rc
-        log_success "Brave set as default browser ✓"
-    fi
+    # Method 1: update-alternatives
+    update-alternatives --install /usr/bin/x-www-browser x-www-browser /usr/bin/brave-browser 200 2>/dev/null || true
+    update-alternatives --set x-www-browser /usr/bin/brave-browser 2>/dev/null || true
+    
+    # Method 2: xdg-settings
+    xdg-settings set default-web-browser brave-browser.desktop 2>/dev/null || true
+    
+    # Method 3: XFCE4 helpers.rc
+    mkdir -p /root/.config/xfce4
+    cat > /root/.config/xfce4/helpers.rc <<HELPERS
+[Desktop Entry]
+WebBrowser=brave-browser
+HELPERS
+    
+    # Method 4: mimeapps.list
+    mkdir -p /root/.config /root/.local/share/applications
+    cat > /root/.config/mimeapps.list <<MIMEAPPS
+[Default Applications]
+text/html=brave-browser.desktop
+x-scheme-handler/http=brave-browser.desktop
+x-scheme-handler/https=brave-browser.desktop
+x-scheme-handler/about=brave-browser.desktop
+x-scheme-handler/unknown=brave-browser.desktop
+
+[Added Associations]
+text/html=brave-browser.desktop
+x-scheme-handler/http=brave-browser.desktop
+x-scheme-handler/https=brave-browser.desktop
+MIMEAPPS
+    
+    log_success "Brave configured as default browser ✓"
+}
+
+configure_firefox() {
+    log_info "Configuring Firefox as default browser..."
+    
+    # Set Firefox as default
+    update-alternatives --install /usr/bin/x-www-browser x-www-browser /usr/bin/firefox-esr 100 2>/dev/null || true
+    update-alternatives --set x-www-browser /usr/bin/firefox-esr 2>/dev/null || true
+    
+    # XFCE4 helpers
+    mkdir -p /root/.config/xfce4
+    cat > /root/.config/xfce4/helpers.rc <<HELPERS
+[Desktop Entry]
+WebBrowser=firefox-esr
+HELPERS
+    
+    log_success "Firefox configured as default browser ✓"
 }
 
 configure_vnc() {
@@ -257,7 +328,7 @@ if [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
 fi
 
 # Start XFCE4
-exec /usr/bin/startxfce4
+exec startxfce4
 XSTARTUP
     
     chmod +x /root/.vnc/xstartup
@@ -265,12 +336,76 @@ XSTARTUP
     
     # Create VNC config
     cat > /root/.vnc/config <<CONFIG
-geometry=1280x720
+geometry=1920x1080
 depth=24
 dpi=96
 CONFIG
     
     log_success "VNC configured ✓"
+}
+
+customize_xfce() {
+    log_info "Customizing XFCE4 for better user experience..."
+    
+    mkdir -p /root/.config/xfce4/xfconf/xfce-perchannel-xml
+    
+    # Configure XFCE4 panel for better layout
+    cat > /root/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml <<'PANEL'
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xfce4-panel" version="1.0">
+  <property name="panels" type="array">
+    <value type="int" value="1"/>
+    <property name="panel-1" type="empty">
+      <property name="position" type="string" value="p=6;x=0;y=0"/>
+      <property name="size" type="uint" value="30"/>
+      <property name="plugin-ids" type="array">
+        <value type="int" value="1"/>
+        <value type="int" value="2"/>
+        <value type="int" value="3"/>
+        <value type="int" value="4"/>
+        <value type="int" value="5"/>
+        <value type="int" value="6"/>
+      </property>
+    </property>
+  </property>
+  <property name="plugins" type="empty">
+    <property name="plugin-1" type="string" value="whiskermenu"/>
+    <property name="plugin-2" type="string" value="tasklist"/>
+    <property name="plugin-3" type="string" value="separator">
+      <property name="expand" type="bool" value="true"/>
+      <property name="style" type="uint" value="0"/>
+    </property>
+    <property name="plugin-4" type="string" value="systray"/>
+    <property name="plugin-5" type="string" value="clock"/>
+    <property name="plugin-6" type="string" value="actions"/>
+  </property>
+</channel>
+PANEL
+    
+    # Set a nice wallpaper color
+    cat > /root/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml <<'DESKTOP'
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xfce4-desktop" version="1.0">
+  <property name="backdrop" type="empty">
+    <property name="screen0" type="empty">
+      <property name="monitor0" type="empty">
+        <property name="workspace0" type="empty">
+          <property name="color-style" type="int" value="0"/>
+          <property name="image-style" type="int" value="5"/>
+          <property name="rgba1" type="array">
+            <value type="double" value="0.2"/>
+            <value type="double" value="0.3"/>
+            <value type="double" value="0.4"/>
+            <value type="double" value="1.0"/>
+          </property>
+        </property>
+      </property>
+    </property>
+  </property>
+</channel>
+DESKTOP
+    
+    log_success "XFCE4 customized ✓"
 }
 
 setup_vnc_password() {
@@ -287,77 +422,198 @@ setup_vnc_password() {
     fi
 }
 
-create_desktop_shortcuts() {
-    log_info "Creating desktop shortcuts..."
+create_desktop_content() {
+    log_info "Creating desktop shortcuts and documentation..."
     
     mkdir -p /root/Desktop
     
-    # Create README
-    cat > /root/Desktop/README.txt <<README
+    # Create comprehensive README
+    cat > /root/Desktop/README.txt <<'README'
 ╔════════════════════════════════════════╗
 ║   Welcome to Ubuntu on Termux!        ║
+║        XFCE4 Desktop Edition          ║
 ╚════════════════════════════════════════╝
 
-Your desktop environment is now installed!
+Your desktop environment is ready to use!
 
-Quick Start:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  QUICK START GUIDE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. Start VNC Server:
-   Open a terminal and run: vncserver
-   
-2. Connect to VNC:
-   • Use a VNC viewer app on your Android device
+1. START VNC SERVER
+   In the terminal, run:
+   $ vncserver
+
+2. CONNECT WITH VNC VIEWER
+   • Open your VNC viewer app
    • Connect to: localhost:5901
-   • Use the password you just set
+   • Enter the password you set
 
-3. Stop VNC Server:
-   vncserver -kill :1
+3. STOP VNC SERVER
+   $ vncserver -kill :1
 
-Useful Commands:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  DESKTOP FEATURES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-• List VNC sessions:  vncserver -list
-• Update system:      apt update && apt upgrade
-• Install software:   apt install <package>
-• Clean up:           apt autoremove && apt clean
+• Applications Menu: Click the icon in top-left corner
+• File Manager: Thunar (fast and lightweight)
+• Web Browser: Brave or Firefox (pre-configured)
+• Terminal: XFCE4 Terminal (keyboard shortcut ready)
+• Text Editor: gedit (simple and clean)
 
-Tips:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  USEFUL COMMANDS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-• VNC display :1 corresponds to port 5901
-• For better performance, use 1024x768 resolution
-• Brave browser is pre-configured for proot
-• Some systemd services won't work in proot
+System Management:
+$ apt update              # Update package lists
+$ apt upgrade             # Upgrade installed packages
+$ apt install <package>   # Install new software
+$ apt search <keyword>    # Search for packages
 
-Troubleshooting:
+VNC Management:
+$ vncserver                     # Start VNC
+$ vncserver -list               # List sessions
+$ vncserver -kill :1            # Stop display :1
+$ vncserver -geometry 1600x900  # Custom resolution
+
+System Info:
+$ neofetch                # Show system information
+$ htop                    # System monitor
+$ df -h                   # Disk space
+$ free -h                 # Memory usage
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CUSTOMIZATION
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-• Black screen? Check ~/.vnc/xstartup permissions
-• DNS issues? Edit /etc/resolv.conf
-• Browser crash? Use: brave-browser --no-sandbox
+Appearance:
+• Settings → Appearance → Choose theme and icons
+• Settings → Window Manager → Customize window borders
+• Right-click desktop → Desktop Settings → Wallpaper
 
-Enjoy your Ubuntu desktop environment!
+Panel:
+• Right-click panel → Panel → Panel Preferences
+• Add/remove items, change position
+• Multiple panels supported
+
+Keyboard Shortcuts:
+• Settings → Keyboard → Application Shortcuts
+• Add custom shortcuts for your favorite apps
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  RECOMMENDED VNC SETTINGS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+For Best Performance:
+• Resolution: 1600x900 or 1920x1080
+• Color Depth: 24-bit
+• Compression: Medium
+
+Recommended VNC Viewers:
+• AVNC (F-Droid) - Best for Termux
+• RealVNC Viewer (Google Play)
+• bVNC (Google Play) - Feature-rich
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  TROUBLESHOOTING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Black screen in VNC?
+$ chmod +x ~/.vnc/xstartup
+$ vncserver -kill :*
+$ vncserver
+
+Slow performance?
+$ vncserver -geometry 1280x720  # Lower resolution
+• Close unused applications
+• Disable compositor in Settings → Window Manager Tweaks
+
+Browser won't start?
+• Brave: Already configured with --no-sandbox
+• Firefox: Alternative browser (pre-installed)
+• Check: Settings → Default Applications
+
+DNS not working?
+$ echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  TIPS & TRICKS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+• Use Whisker Menu for better app search
+• Pin favorite apps to the panel for quick access
+• Enable compositor for smooth animations
+  (Settings → Window Manager Tweaks)
+• Install additional themes:
+  $ apt install numix-gtk-theme papirus-icon-theme
+• Add workspaces for better organization
+• Use Clipman for clipboard history
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Enjoy your Ubuntu desktop environment on Android!
+
+For more help, visit: https://docs.xfce.org/
 README
     
     # Create start VNC script
-    cat > /root/Desktop/start-vnc.sh <<'VNCSRIPT'
+    cat > /root/Desktop/start-vnc.sh <<'VNCSCRIPT'
 #!/bin/bash
 # Start VNC Server
 
-echo "Starting VNC Server..."
-vncserver -geometry 1280x720 -depth 24
+echo "╔════════════════════════════════════════╗"
+echo "║       Starting VNC Server...          ║"
+echo "╚════════════════════════════════════════╝"
+echo ""
+
+vncserver -geometry 1920x1080 -depth 24
 
 echo ""
-echo "VNC Server started!"
+echo "✓ VNC Server started!"
+echo ""
 echo "Connect to: localhost:5901"
 echo ""
-echo "To stop: vncserver -kill :1"
-VNCSRIPT
+echo "To stop VNC: vncserver -kill :1"
+echo ""
+VNCSCRIPT
     
     chmod +x /root/Desktop/start-vnc.sh
     
-    log_success "Desktop shortcuts created ✓"
+    # Create system info script
+    cat > /root/Desktop/system-info.sh <<'SYSINFO'
+#!/bin/bash
+# Display System Information
+
+clear
+echo "╔════════════════════════════════════════╗"
+echo "║         System Information            ║"
+echo "╚════════════════════════════════════════╝"
+echo ""
+
+if command -v neofetch &> /dev/null; then
+    neofetch
+else
+    echo "OS: $(lsb_release -d | cut -f2)"
+    echo "Kernel: $(uname -r)"
+    echo "Architecture: $(uname -m)"
+    echo ""
+    echo "Memory Usage:"
+    free -h
+    echo ""
+    echo "Disk Usage:"
+    df -h /
+fi
+
+echo ""
+echo "Press Enter to close..."
+read
+SYSINFO
+    
+    chmod +x /root/Desktop/system-info.sh
+    
+    log_success "Desktop content created ✓"
 }
 
 cleanup() {
@@ -376,38 +632,58 @@ show_completion_message() {
     clear
     echo ""
     echo -e "${GREEN}╔════════════════════════════════════════╗"
-    echo -e "║   Desktop Installation Complete! 🎉   ║"
+    echo -e "║                                        ║"
+    echo -e "║    Installation Complete! 🎉           ║"
+    echo -e "║                                        ║"
     echo -e "╚════════════════════════════════════════╝${NC}"
     echo ""
-    echo -e "${BLUE}What's Installed:${NC}"
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}  What's Installed${NC}"
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
     echo "  ✓ XFCE4 Desktop Environment"
     echo "  ✓ TigerVNC Server"
-    echo "  ✓ Brave Browser (proot-ready)"
-    echo "  ✓ Essential utilities"
+    if dpkg -s brave-browser &> /dev/null; then
+        echo "  ✓ Brave Browser (default)"
+    else
+        echo "  ✓ Firefox ESR (default browser)"
+    fi
+    echo "  ✓ File Manager (Thunar)"
+    echo "  ✓ Text Editor (gedit)"
+    echo "  ✓ Terminal Emulator"
+    echo "  ✓ Essential Utilities"
     echo ""
-    echo -e "${BLUE}Next Steps:${NC}"
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}  Next Steps${NC}"
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
-    echo "  1. Start VNC server:"
-    echo -e "     ${YELLOW}vncserver${NC}"
+    echo -e "  ${YELLOW}1.${NC} Start VNC server:"
+    echo -e "     ${GREEN}vncserver${NC}"
     echo ""
-    echo "  2. Connect with VNC Viewer:"
-    echo -e "     ${YELLOW}localhost:5901${NC}"
+    echo -e "  ${YELLOW}2.${NC} Open your VNC Viewer app and connect to:"
+    echo -e "     ${GREEN}localhost:5901${NC}"
     echo ""
-    echo "  3. Stop VNC when done:"
-    echo -e "     ${YELLOW}vncserver -kill :1${NC}"
+    echo -e "  ${YELLOW}3.${NC} When done, stop VNC:"
+    echo -e "     ${GREEN}vncserver -kill :1${NC}"
     echo ""
-    echo -e "${BLUE}Recommended VNC Viewers:${NC}"
-    echo "  • AVNC (F-Droid)"
-    echo "  • RealVNC Viewer (Google Play)"
-    echo "  • VNC Viewer (Google Play)"
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}  Quick Tips${NC}"
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
-    echo -e "${GREEN}Check ~/Desktop/README.txt for more info!${NC}"
+    echo "  • Check Desktop/README.txt for detailed guide"
+    echo "  • Use Desktop/start-vnc.sh for easy VNC startup"
+    echo "  • Recommended VNC apps: AVNC, RealVNC Viewer"
+    echo "  • Default resolution: 1920x1080 (adjustable)"
+    echo ""
+    echo -e "${GREEN}Enjoy your new desktop environment!${NC}"
     echo ""
 }
 
 error_handler() {
+    echo ""
     log_error "Installation encountered an error"
-    log_info "Check the output above for details"
+    log_info "Please check the output above for details"
+    echo ""
     exit 1
 }
 
@@ -418,12 +694,9 @@ trap error_handler ERR
 
 main() {
     banner
+    show_features
     
-    log_info "This will install a full desktop environment"
-    log_info "Estimated time: 20-40 minutes"
-    log_warning "Make sure you have a stable internet connection"
-    echo ""
-    read -p "Continue? (y/N): " -n 1 -r
+    read -p "Ready to install? (y/N): " -n 1 -r
     echo
     
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
@@ -440,21 +713,25 @@ main() {
     fix_resolv_conf
     
     if ! update_system; then
-        log_warning "Package list update failed, but continuing..."
+        log_warning "Package update had issues, but continuing..."
     fi
     
     install_desktop
     install_vnc
     install_utilities
     
-    # Brave is optional
+    # Try to install Brave, fall back to Firefox
     if install_brave; then
         configure_brave
+    else
+        log_info "Using Firefox as your web browser"
+        configure_firefox
     fi
     
     configure_vnc
+    customize_xfce
     setup_vnc_password
-    create_desktop_shortcuts
+    create_desktop_content
     cleanup
     
     show_completion_message

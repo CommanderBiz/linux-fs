@@ -231,7 +231,7 @@ copy_post_install() {
     
     local search_paths=(
         "./"
-        "$(dirname "$0")/"
+        "$(dirname "$0")માંથી"
         "./ubuntu/"
         "../"
         "$HOME/"
