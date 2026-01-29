@@ -143,13 +143,15 @@ export DEBIAN_FRONTEND=noninteractive
 
 echo "[*] Configuring APT sources..."
 cat > /etc/apt/sources.list <<SOURCES
-deb https://ports.ubuntu.com/ubuntu-ports/ noble main restricted universe multiverse
-deb https://ports.ubuntu.com/ubuntu-ports/ noble-updates main restricted universe multiverse
-deb https://ports.ubuntu.com/ubuntu-ports/ noble-security main restricted universe multiverse
+deb http://ports.ubuntu.com/ubuntu-ports/ noble main restricted universe multiverse
+deb http://ports.ubuntu.com/ubuntu-ports/ noble-updates main restricted universe multiverse
+deb http://ports.ubuntu.com/ubuntu-ports/ noble-security main restricted universe multiverse
 SOURCES
 
 # APT Workarounds for QEMU/proot
 echo 'Acquire::http::Pipeline-Depth "0";' > /etc/apt/apt.conf.d/99-no-pipelining
+echo 'Acquire::http::No-Cache "true";' >> /etc/apt/apt.conf.d/99-no-pipelining
+echo 'Acquire::BrokenProxy "true";' >> /etc/apt/apt.conf.d/99-no-pipelining
 echo 'APT::Get::Assume-Yes "true";' > /etc/apt/apt.conf.d/99-assume-yes
 
 echo "[*] Updating package lists..."

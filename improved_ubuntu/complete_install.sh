@@ -107,6 +107,29 @@ DNS
     log_success "DNS configured ✓"
 }
 
+fix_apt_sources() {
+    log_info "Configuring APT for proot environment..."
+    
+    # Use HTTP instead of HTTPS to avoid SSL issues in proot
+    cat > /etc/apt/sources.list <<SOURCES
+deb http://ports.ubuntu.com/ubuntu-ports/ noble main restricted universe multiverse
+deb http://ports.ubuntu.com/ubuntu-ports/ noble-updates main restricted universe multiverse
+deb http://ports.ubuntu.com/ubuntu-ports/ noble-security main restricted universe multiverse
+SOURCES
+    
+    # Configure APT to work better in proot
+    cat > /etc/apt/apt.conf.d/99-termux <<APTCONF
+Acquire::http::Pipeline-Depth "0";
+Acquire::http::No-Cache "true";
+Acquire::BrokenProxy "true";
+APT::Get::Assume-Yes "true";
+APT::Install-Recommends "false";
+APT::Install-Suggests "false";
+APTCONF
+    
+    log_success "APT configured for proot ✓"
+}
+
 update_system() {
     log_info "Updating package lists..."
     log_warning "This may take a few minutes..."
@@ -118,17 +141,19 @@ update_system() {
     local attempt=1
     
     while [ $attempt -le $max_attempts ]; do
-        if apt-get update 2>&1 | grep -v "^Ign:" | grep -v "^Get:" | grep -v "^Hit:"; then
+        log_info "Attempt $attempt of $max_attempts..."
+        if apt-get update 2>&1; then
             log_success "Package lists updated ✓"
             return 0
         else
             log_warning "Update attempt $attempt failed"
             if [ $attempt -lt $max_attempts ]; then
-                log_info "Retrying in 5 seconds..."
-                sleep 5
+                log_info "Retrying in 10 seconds..."
+                sleep 10
                 attempt=$((attempt + 1))
             else
                 log_error "Failed to update package lists after $max_attempts attempts"
+                log_error "This is usually a network issue. Try again later or check your connection."
                 return 1
             fi
         fi
@@ -711,9 +736,12 @@ main() {
     check_internet
     check_space
     fix_resolv_conf
+    fix_apt_sources
     
     if ! update_system; then
-        log_warning "Package update had issues, but continuing..."
+        log_error "Cannot proceed without package lists"
+        log_info "Please check your internet connection and try again"
+        exit 1
     fi
     
     install_desktop
