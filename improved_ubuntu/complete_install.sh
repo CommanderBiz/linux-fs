@@ -206,25 +206,33 @@ install_utilities() {
     
     export DEBIAN_FRONTEND=noninteractive
     
+    # First install curl and wget - needed for other installations
+    apt-get install -y \
+        curl \
+        wget \
+        ca-certificates \
+        gnupg \
+        || {
+            log_error "Failed to install basic utilities"
+            return 1
+        }
+    
+    # Then install everything else
     apt-get install -y \
         nano \
         vim \
-        wget \
-        curl \
         git \
         htop \
         neofetch \
         net-tools \
         iputils-ping \
-        firefox-esr \
+        firefox \
         gedit \
         file-roller \
-        gpg \
-        ca-certificates \
         fonts-dejavu \
         fonts-liberation \
         || {
-            log_warning "Some utilities failed to install"
+            log_warning "Some utilities failed to install (continuing...)"
         }
     
     log_success "Utilities and applications installed ✓"
@@ -236,23 +244,32 @@ install_brave() {
     export DEBIAN_FRONTEND=noninteractive
     
     # Add Brave repository
-    curl -fsSLo /usr/share/keyrings/brave-browser-archive-keyring.gpg \
-        https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg || {
+    if ! curl -fsSLo /usr/share/keyrings/brave-browser-archive-keyring.gpg \
+        https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg; then
         log_warning "Failed to download Brave keyring"
-        log_info "Firefox ESR is already installed as your browser"
+        log_info "This might be a temporary network issue"
+        log_info "Firefox will be configured as fallback browser"
         return 1
-    }
+    fi
     
     echo "deb [signed-by=/usr/share/keyrings/brave-browser-archive-keyring.gpg arch=arm64] https://brave-browser-apt-release.s3.brave.com/ stable main" \
         > /etc/apt/sources.list.d/brave-browser-release.list
     
     # Update and install
-    apt-get update
-    apt-get install -y brave-browser || {
-        log_warning "Brave browser installation failed"
-        log_info "Firefox ESR is available as your browser"
+    log_info "Updating package lists for Brave..."
+    if ! apt-get update; then
+        log_warning "Failed to update Brave repository"
+        log_info "Using Firefox as browser instead"
         return 1
-    }
+    fi
+    
+    log_info "Installing Brave (this may take a few minutes)..."
+    if ! apt-get install -y brave-browser; then
+        log_warning "Brave browser installation failed"
+        log_info "This is common on some devices/networks"
+        log_info "Firefox is already installed and will be configured"
+        return 1
+    fi
     
     log_success "Brave browser installed ✓"
 }
@@ -321,15 +338,31 @@ configure_firefox() {
     log_info "Configuring Firefox as default browser..."
     
     # Set Firefox as default
-    update-alternatives --install /usr/bin/x-www-browser x-www-browser /usr/bin/firefox-esr 100 2>/dev/null || true
-    update-alternatives --set x-www-browser /usr/bin/firefox-esr 2>/dev/null || true
+    update-alternatives --install /usr/bin/x-www-browser x-www-browser /usr/bin/firefox 100 2>/dev/null || true
+    update-alternatives --set x-www-browser /usr/bin/firefox 2>/dev/null || true
     
     # XFCE4 helpers
     mkdir -p /root/.config/xfce4
     cat > /root/.config/xfce4/helpers.rc <<HELPERS
 [Desktop Entry]
-WebBrowser=firefox-esr
+WebBrowser=firefox
 HELPERS
+    
+    # mimeapps.list for Firefox
+    mkdir -p /root/.config /root/.local/share/applications
+    cat > /root/.config/mimeapps.list <<MIMEAPPS
+[Default Applications]
+text/html=firefox.desktop
+x-scheme-handler/http=firefox.desktop
+x-scheme-handler/https=firefox.desktop
+x-scheme-handler/about=firefox.desktop
+x-scheme-handler/unknown=firefox.desktop
+
+[Added Associations]
+text/html=firefox.desktop
+x-scheme-handler/http=firefox.desktop
+x-scheme-handler/https=firefox.desktop
+MIMEAPPS
     
     log_success "Firefox configured as default browser ✓"
 }
@@ -439,7 +472,32 @@ setup_vnc_password() {
     log_warning "You will be prompted to enter a password for VNC access"
     echo ""
     
-    if vncpasswd; then
+    # vncpasswd might be in different locations
+    local vncpasswd_cmd=""
+    if command -v vncpasswd &> /dev/null; then
+        vncpasswd_cmd="vncpasswd"
+    elif [ -f /usr/bin/vncpasswd ]; then
+        vncpasswd_cmd="/usr/bin/vncpasswd"
+    elif [ -f /usr/local/bin/vncpasswd ]; then
+        vncpasswd_cmd="/usr/local/bin/vncpasswd"
+    else
+        log_error "vncpasswd command not found"
+        log_info "Trying alternative approach..."
+        # Create a simple password file manually
+        mkdir -p /root/.vnc
+        echo "Please enter VNC password:"
+        read -s vnc_pass
+        echo "$vnc_pass" | vncpasswd -f > /root/.vnc/passwd 2>/dev/null || {
+            log_error "Failed to set VNC password"
+            log_warning "You can set it manually later with: vncpasswd"
+            return 1
+        }
+        chmod 600 /root/.vnc/passwd
+        log_success "VNC password set ✓"
+        return 0
+    fi
+    
+    if $vncpasswd_cmd; then
         log_success "VNC password set ✓"
     else
         log_error "Failed to set VNC password"
@@ -668,11 +726,16 @@ show_completion_message() {
     echo ""
     echo "  ✓ XFCE4 Desktop Environment"
     echo "  ✓ TigerVNC Server"
+    
+    # Check which browser is actually installed
     if dpkg -s brave-browser &> /dev/null; then
         echo "  ✓ Brave Browser (default)"
+        echo "  ✓ Firefox (backup browser)"
     else
-        echo "  ✓ Firefox ESR (default browser)"
+        echo "  ✓ Firefox (default browser)"
+        echo "  ℹ Brave installation failed - Firefox configured instead"
     fi
+    
     echo "  ✓ File Manager (Thunar)"
     echo "  ✓ Text Editor (gedit)"
     echo "  ✓ Terminal Emulator"
@@ -699,6 +762,15 @@ show_completion_message() {
     echo "  • Use Desktop/start-vnc.sh for easy VNC startup"
     echo "  • Recommended VNC apps: AVNC, RealVNC Viewer"
     echo "  • Default resolution: 1920x1080 (adjustable)"
+    
+    # Add note about Brave if it failed
+    if ! dpkg -s brave-browser &> /dev/null; then
+        echo ""
+        echo -e "${YELLOW}  Note: Brave installation failed due to network/repo issues${NC}"
+        echo "  You can try installing it later with:"
+        echo "  apt install brave-browser"
+    fi
+    
     echo ""
     echo -e "${GREEN}Enjoy your new desktop environment!${NC}"
     echo ""
