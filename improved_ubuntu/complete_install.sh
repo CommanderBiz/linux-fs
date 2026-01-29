@@ -190,9 +190,11 @@ install_vnc() {
     
     export DEBIAN_FRONTEND=noninteractive
     
+    # Install both standalone server and xorg-server for vncpasswd
     apt-get install -y \
         tigervnc-standalone-server \
         tigervnc-common \
+        tigervnc-xorg-extension \
         || {
             log_error "VNC installation failed"
             return 1
@@ -472,35 +474,20 @@ setup_vnc_password() {
     log_warning "You will be prompted to enter a password for VNC access"
     echo ""
     
-    # vncpasswd might be in different locations
-    local vncpasswd_cmd=""
-    if command -v vncpasswd &> /dev/null; then
-        vncpasswd_cmd="vncpasswd"
-    elif [ -f /usr/bin/vncpasswd ]; then
-        vncpasswd_cmd="/usr/bin/vncpasswd"
-    elif [ -f /usr/local/bin/vncpasswd ]; then
-        vncpasswd_cmd="/usr/local/bin/vncpasswd"
-    else
-        log_error "vncpasswd command not found"
-        log_info "Trying alternative approach..."
-        # Create a simple password file manually
-        mkdir -p /root/.vnc
-        echo "Please enter VNC password:"
-        read -s vnc_pass
-        echo "$vnc_pass" | vncpasswd -f > /root/.vnc/passwd 2>/dev/null || {
-            log_error "Failed to set VNC password"
-            log_warning "You can set it manually later with: vncpasswd"
-            return 1
-        }
-        chmod 600 /root/.vnc/passwd
-        log_success "VNC password set ✓"
-        return 0
+    # Check if vncpasswd exists
+    if ! command -v vncpasswd &> /dev/null; then
+        log_error "vncpasswd not found - VNC package may not have installed correctly"
+        log_warning "Try running this manually after installation:"
+        echo "  apt install tigervnc-standalone-server tigervnc-xorg-extension"
+        echo "  vncpasswd"
+        return 1
     fi
     
-    if $vncpasswd_cmd; then
+    if vncpasswd; then
         log_success "VNC password set ✓"
     else
         log_error "Failed to set VNC password"
+        log_warning "You can set it manually later with: vncpasswd"
         return 1
     fi
 }

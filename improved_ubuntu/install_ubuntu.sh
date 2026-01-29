@@ -230,21 +230,38 @@ copy_post_install() {
         "$HOME/complete_install.sh"
     )
     
-    # Ensure /root directory exists
-    sudo mkdir -p "./$ROOTFS_DIR/root"
-    
     for path in "${search_paths[@]}"; do
         if [ -f "$path" ]; then
             log_success "Found complete_install.sh at: $path"
-            sudo cp "$path" "./$ROOTFS_DIR/root/complete_install.sh"
-            sudo chmod +x "./$ROOTFS_DIR/root/complete_install.sh"
-            found=true
-            break
+            
+            # Ensure /root directory exists
+            if ! sudo test -d "./$ROOTFS_DIR/root"; then
+                sudo mkdir -p "./$ROOTFS_DIR/root" || {
+                    log_error "Failed to create /root directory"
+                    exit 1
+                }
+            fi
+            
+            # Copy the file
+            if sudo cp "$path" "./$ROOTFS_DIR/root/complete_install.sh" 2>/dev/null; then
+                sudo chmod +x "./$ROOTFS_DIR/root/complete_install.sh"
+                
+                # Verify it was copied (use sudo since file is owned by root)
+                if sudo test -f "./$ROOTFS_DIR/root/complete_install.sh"; then
+                    log_success "Desktop installer successfully added to rootfs ✓"
+                    found=true
+                    break
+                else
+                    log_error "File copied but verification failed"
+                fi
+            else
+                log_error "Copy command failed"
+            fi
         fi
     done
     
     if [ "$found" = false ]; then
-        log_error "complete_install.sh not found!"
+        log_error "complete_install.sh not found or failed to copy!"
         log_info "Searched paths: ${search_paths[*]}"
         log_warning "Desktop installation will not be available in the final image."
         echo ""
@@ -258,21 +275,18 @@ copy_post_install() {
             read -p "Enter the full path to complete_install.sh: " custom_path
             if [ -f "$custom_path" ]; then
                 log_success "Found complete_install.sh at: $custom_path"
+                sudo mkdir -p "./$ROOTFS_DIR/root"
                 sudo cp "$custom_path" "./$ROOTFS_DIR/root/complete_install.sh"
                 sudo chmod +x "./$ROOTFS_DIR/root/complete_install.sh"
-                found=true
+                
+                if sudo test -f "./$ROOTFS_DIR/root/complete_install.sh"; then
+                    log_success "Desktop installer successfully added to rootfs ✓"
+                else
+                    log_error "Failed to copy complete_install.sh to rootfs"
+                fi
             else
                 log_error "File not found at: $custom_path"
             fi
-        fi
-    fi
-    
-    if [ "$found" = true ]; then
-        # Verify it was copied successfully
-        if [ -f "./$ROOTFS_DIR/root/complete_install.sh" ]; then
-            log_success "Desktop installer successfully added to rootfs ✓"
-        else
-            log_error "Failed to copy complete_install.sh to rootfs"
         fi
     fi
 }
