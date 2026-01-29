@@ -217,78 +217,60 @@ SETUP_SCRIPT
 }
 
 copy_post_install() {
-    log_info "Looking for desktop installer scripts..."
+    log_info "Looking for desktop installer script..."
     
-    local found_any=false
-    
-    # List of scripts to look for
-    declare -A scripts=(
-        ["complete_install_gnome.sh"]="GNOME desktop installer"
-        ["complete_install_xfce.sh"]="XFCE desktop installer"
-        ["complete_install.sh"]="Default desktop installer"
-        ["choose_desktop.sh"]="Desktop chooser"
-    )
-    
+    local found=false
     local search_paths=(
-        "./"
-        "$(dirname "$0")માંથી"
-        "./ubuntu/"
-        "../"
-        "$HOME/"
+        "./complete_install.sh"
+        "$(dirname "$0")/complete_install.sh"
+        "./ubuntu/complete_install.sh"
+        "../complete_install.sh"
+        "$HOME/complete_install.sh"
     )
     
     # Ensure /root directory exists
     sudo mkdir -p "./$ROOTFS_DIR/root"
     
-    # Try to find and copy each script
-    for script_name in "${!scripts[@]}"; do
-        local found=false
-        local description="${scripts[$script_name]}"
-        
-        for base_path in "${search_paths[@]}"; do
-            local full_path="${base_path}${script_name}"
-            if [ -f "$full_path" ]; then
-                log_success "Found $description at: $full_path"
-                sudo cp "$full_path" "./$ROOTFS_DIR/root/$script_name"
-                sudo chmod +x "./$ROOTFS_DIR/root/$script_name"
-                found=true
-                found_any=true
-                break
-            fi
-        done
-        
-        if [ "$found" = false ]; then
-            log_warning "$description not found: $script_name"
+    for path in "${search_paths[@]}"; do
+        if [ -f "$path" ]; then
+            log_success "Found complete_install.sh at: $path"
+            sudo cp "$path" "./$ROOTFS_DIR/root/complete_install.sh"
+            sudo chmod +x "./$ROOTFS_DIR/root/complete_install.sh"
+            found=true
+            break
         fi
     done
     
-    # Verify at least one installer was copied
-    if [ "$found_any" = true ]; then
-        log_success "Desktop installer(s) added to rootfs ✓"
-        
-        # Show what was included
-        echo ""
-        log_info "Included desktop installers:"
-        for script in complete_install*.sh choose_desktop.sh; do
-            if [ -f "./$ROOTFS_DIR/root/$script" ]; then
-                echo "  ✓ $script"
-            fi
-        done
-        echo ""
-    else
-        log_error "No desktop installers found!"
+    if [ "$found" = false ]; then
+        log_error "complete_install.sh not found!"
+        log_info "Searched paths: ${search_paths[*]}"
         log_warning "Desktop installation will not be available in the final image."
         echo ""
-        log_info "To fix this, place one of these files in the same directory:"
-        for script_name in "${!scripts[@]}"; do
-            echo "  - $script_name"
-        done
+        log_info "To fix this:"
+        echo "  1. Place complete_install.sh in the same directory as this script"
+        echo "  2. Or specify the path when prompted"
         echo ""
-        read -p "Continue without desktop installers? (y/N): " -n 1 -r
+        read -p "Do you have complete_install.sh in another location? (y/N): " -n 1 -r
         echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            log_info "Build cancelled"
-            exit 1
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            read -p "Enter the full path to complete_install.sh: " custom_path
+            if [ -f "$custom_path" ]; then
+                log_success "Found complete_install.sh at: $custom_path"
+                sudo cp "$custom_path" "./$ROOTFS_DIR/root/complete_install.sh"
+                sudo chmod +x "./$ROOTFS_DIR/root/complete_install.sh"
+                found=true
+            else
+                log_error "File not found at: $custom_path"
+            fi
+        fi
+    fi
+    
+    if [ "$found" = true ]; then
+        # Verify it was copied successfully
+        if [ -f "./$ROOTFS_DIR/root/complete_install.sh" ]; then
+            log_success "Desktop installer successfully added to rootfs ✓"
+        else
+            log_error "Failed to copy complete_install.sh to rootfs"
         fi
     fi
 }
