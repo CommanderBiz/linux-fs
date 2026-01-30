@@ -190,11 +190,11 @@ install_vnc() {
     
     export DEBIAN_FRONTEND=noninteractive
     
-    # Install both standalone server and xorg-server for vncpasswd
+    # Install VNC server and tools (tools package has vncpasswd)
     apt-get install -y \
         tigervnc-standalone-server \
         tigervnc-common \
-        tigervnc-xorg-extension \
+        tigervnc-tools \
         || {
             log_error "VNC installation failed"
             return 1
