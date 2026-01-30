@@ -394,14 +394,16 @@ XSTARTUP
     chmod +x /root/.vnc/xstartup
     log_success "VNC startup script created ✓"
     
-    # Create VNC config
+    # Create VNC config with high resolution
     cat > /root/.vnc/config <<CONFIG
 geometry=1920x1080
 depth=24
 dpi=96
+localhost=no
+alwaysshared
 CONFIG
     
-    log_success "VNC configured ✓"
+    log_success "VNC configured for 1920x1080 resolution ✓"
 }
 
 customize_xfce() {
@@ -413,11 +415,16 @@ customize_xfce() {
     cat > /root/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml <<'PANEL'
 <?xml version="1.0" encoding="UTF-8"?>
 <channel name="xfce4-panel" version="1.0">
+  <property name="configver" type="int" value="2"/>
   <property name="panels" type="array">
     <value type="int" value="1"/>
+    <property name="dark-mode" type="bool" value="false"/>
     <property name="panel-1" type="empty">
       <property name="position" type="string" value="p=6;x=0;y=0"/>
-      <property name="size" type="uint" value="30"/>
+      <property name="length" type="uint" value="100"/>
+      <property name="position-locked" type="bool" value="true"/>
+      <property name="icon-size" type="uint" value="16"/>
+      <property name="size" type="uint" value="26"/>
       <property name="plugin-ids" type="array">
         <value type="int" value="1"/>
         <value type="int" value="2"/>
@@ -425,38 +432,58 @@ customize_xfce() {
         <value type="int" value="4"/>
         <value type="int" value="5"/>
         <value type="int" value="6"/>
+        <value type="int" value="7"/>
+        <value type="int" value="8"/>
       </property>
     </property>
   </property>
   <property name="plugins" type="empty">
     <property name="plugin-1" type="string" value="whiskermenu"/>
-    <property name="plugin-2" type="string" value="tasklist"/>
+    <property name="plugin-2" type="string" value="tasklist">
+      <property name="grouping" type="uint" value="1"/>
+    </property>
     <property name="plugin-3" type="string" value="separator">
       <property name="expand" type="bool" value="true"/>
       <property name="style" type="uint" value="0"/>
     </property>
-    <property name="plugin-4" type="string" value="systray"/>
-    <property name="plugin-5" type="string" value="clock"/>
-    <property name="plugin-6" type="string" value="actions"/>
+    <property name="plugin-4" type="string" value="systray">
+      <property name="square-icons" type="bool" value="true"/>
+    </property>
+    <property name="plugin-5" type="string" value="statusnotifier">
+      <property name="square-icons" type="bool" value="true"/>
+    </property>
+    <property name="plugin-6" type="string" value="pulseaudio">
+      <property name="enable-keyboard-shortcuts" type="bool" value="true"/>
+    </property>
+    <property name="plugin-7" type="string" value="clock">
+      <property name="digital-format" type="string" value="%I:%M %p"/>
+    </property>
+    <property name="plugin-8" type="string" value="actions"/>
   </property>
 </channel>
 PANEL
     
-    # Set a nice wallpaper color
+    # Set nice default wallpaper (XFCE's default blue)
     cat > /root/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml <<'DESKTOP'
 <?xml version="1.0" encoding="UTF-8"?>
 <channel name="xfce4-desktop" version="1.0">
   <property name="backdrop" type="empty">
     <property name="screen0" type="empty">
-      <property name="monitor0" type="empty">
+      <property name="monitorVNC-0" type="empty">
         <property name="workspace0" type="empty">
           <property name="color-style" type="int" value="0"/>
           <property name="image-style" type="int" value="5"/>
           <property name="rgba1" type="array">
-            <value type="double" value="0.2"/>
-            <value type="double" value="0.3"/>
-            <value type="double" value="0.4"/>
-            <value type="double" value="1.0"/>
+            <value type="double" value="0.101961"/>
+            <value type="double" value="0.141176"/>
+            <value type="double" value="0.231373"/>
+            <value type="double" value="1.000000"/>
+          </property>
+          <property name="rgba2" type="array">
+            <value type="double" value="0.160784"/>
+            <value type="double" value="0.203922"/>
+            <value type="double" value="0.321569"/>
+            <value type="double" value="1.000000"/>
           </property>
         </property>
       </property>
@@ -464,6 +491,45 @@ PANEL
   </property>
 </channel>
 DESKTOP
+
+    # Enable nice window manager theme
+    cat > /root/.config/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml <<'XFWM4'
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xfwm4" version="1.0">
+  <property name="general" type="empty">
+    <property name="theme" type="string" value="Default"/>
+    <property name="button_layout" type="string" value="O|SHMC"/>
+    <property name="button_offset" type="int" value="0"/>
+    <property name="button_spacing" type="int" value="0"/>
+    <property name="click_to_focus" type="bool" value="true"/>
+    <property name="focus_delay" type="int" value="250"/>
+    <property name="focus_hint" type="bool" value="true"/>
+    <property name="focus_new" type="bool" value="true"/>
+    <property name="raise_delay" type="int" value="250"/>
+    <property name="raise_on_click" type="bool" value="true"/>
+    <property name="raise_on_focus" type="bool" value="false"/>
+    <property name="show_popup_shadow" type="bool" value="true"/>
+    <property name="snap_to_border" type="bool" value="true"/>
+    <property name="snap_to_windows" type="bool" value="false"/>
+    <property name="snap_width" type="int" value="10"/>
+    <property name="titleless_maximize" type="bool" value="false"/>
+    <property name="title_alignment" type="string" value="center"/>
+    <property name="title_font" type="string" value="Sans Bold 9"/>
+    <property name="workspace_count" type="int" value="4"/>
+  </property>
+</channel>
+XFWM4
+
+    # Set nice mouse cursor theme
+    cat > /root/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml <<'XSETTINGS'
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xsettings" version="1.0">
+  <property name="Gtk" type="empty">
+    <property name="CursorThemeName" type="string" value="Adwaita"/>
+    <property name="CursorThemeSize" type="int" value="24"/>
+  </property>
+</channel>
+XSETTINGS
     
     log_success "XFCE4 customized ✓"
 }
@@ -638,11 +704,16 @@ echo "║       Starting VNC Server...          ║"
 echo "╚════════════════════════════════════════╝"
 echo ""
 
-vncserver -geometry 1920x1080 -depth 24
+# Kill any existing VNC sessions first
+vncserver -kill :1 2>/dev/null
+
+# Start with explicit high resolution
+vncserver :1 -geometry 1920x1080 -depth 24
 
 echo ""
 echo "✓ VNC Server started!"
 echo ""
+echo "Resolution: 1920x1080"
 echo "Connect to: localhost:5901"
 echo ""
 echo "To stop VNC: vncserver -kill :1"
