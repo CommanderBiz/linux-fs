@@ -233,6 +233,8 @@ install_utilities() {
         file-roller \
         fonts-dejavu \
         fonts-liberation \
+        adwaita-icon-theme \
+        gnome-themes-extra \
         || {
             log_warning "Some utilities failed to install (continuing...)"
         }
@@ -310,11 +312,17 @@ configure_brave() {
     # Method 2: xdg-settings
     xdg-settings set default-web-browser brave-browser.desktop 2>/dev/null || true
     
-    # Method 3: XFCE4 helpers.rc
+    # Method 3: XFCE4 helpers.rc (proper format with custom command)
     mkdir -p /root/.config/xfce4
-    cat > /root/.config/xfce4/helpers.rc <<HELPERS
-[Desktop Entry]
-WebBrowser=brave-browser
+    cat > /root/.config/xfce4/helpers.rc <<'HELPERS'
+WebBrowser=custom-WebBrowser
+
+[custom-WebBrowser]
+Icon=brave-browser
+Type=X-XFCE-Helper
+X-XFCE-Category=WebBrowser
+X-XFCE-Commands=/usr/bin/brave-browser --no-sandbox --test-type --disable-dev-shm-usage
+X-XFCE-CommandsWithParameter=/usr/bin/brave-browser --no-sandbox --test-type --disable-dev-shm-usage "%s"
 HELPERS
     
     # Method 4: mimeapps.list

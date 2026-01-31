@@ -21,7 +21,7 @@ This is a pre-built Ubuntu Noble (24.04 LTS) ARM64 root filesystem for use with 
    ```bash
    ./start-ubuntu.sh
    ```
-4. Install desktop (optional):
+4. Install desktop (XFCE4 + Brave + VNC):
    ```bash
    /root/complete_install.sh
    ```
@@ -45,7 +45,7 @@ sha256sum -c ubuntu-fs.tar.xz.sha256
 - Ubuntu Noble 24.04 LTS base system
 - Essential utilities (nano, wget, ca-certificates)
 - Pre-configured for proot environment
-- Desktop environment installer script
+- Desktop environment installer script (XFCE4, Brave Browser, TigerVNC)
 
 ## Support
 
