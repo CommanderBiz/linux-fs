@@ -26,6 +26,27 @@ This is a pre-built Ubuntu Noble (24.04 LTS) ARM64 root filesystem for use with 
    /root/complete_install.sh
    ```
 
+## Desktop & Browsers
+
+The included `complete_install.sh` script sets up a lightweight XFCE4 desktop environment.
+
+**Web Browser:**
+- **Brave Browser** is the default installed web browser.
+- **Access:** Click the **Mouse icon** (Application Menu) in the upper left corner > **Internet** > **Brave Web Browser**.
+
+**Installing other browsers:**
+To install Firefox:
+```bash
+apt update
+apt install firefox
+```
+
+To install Chromium:
+```bash
+apt update
+apt install chromium-browser
+```
+
 ## Verification
 
 Verify the download integrity:
