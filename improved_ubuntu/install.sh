@@ -11,7 +11,7 @@ set -u  # Exit on undefined variable
 
 # --- CONFIGURATION ---
 # PASTE YOUR RELEASE LINK HERE vvv
-RELEASE_URL="https://github.com/CommanderBiz/linux-fs/releases/download/u1.1/ubuntu-fs.tar.xz"
+RELEASE_URL="https://github.com/CommanderBiz/linux-fs/releases/download/u1.2/ubuntu-fs.tar.xz"
 CHECKSUM_URL=""  # Optional: Add SHA256 checksum URL for verification
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -48,7 +48,7 @@ banner() {
     clear
     echo "========================================"
     echo "   Ubuntu on Termux Installer"
-    echo "   Version: 1.1"
+    echo "   Version: 1.2"
     echo "========================================"
     echo ""
 }
