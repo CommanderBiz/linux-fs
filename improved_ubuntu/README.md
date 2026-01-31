@@ -21,33 +21,10 @@ This is a pre-built Ubuntu Noble (24.04 LTS) ARM64 root filesystem for use with 
    ```bash
    ./start-ubuntu.sh
    ```
-4. Install desktop (XFCE4 + Brave + VNC):
+4. Install desktop (optional):
    ```bash
    /root/complete_install.sh
    ```
-
-## Desktop & Browsers
-
-The included `complete_install.sh` script sets up a lightweight XFCE4 desktop environment.
-
-![Ubuntu Desktop with Brave](improved_ubuntu/brave_ubuntu.jpg)
-
-**Web Browser:**
-- **Brave Browser** is the default installed web browser.
-- **Access:** Click the **Mouse icon** (Application Menu) in the upper left corner > **Internet** > **Brave Web Browser**.
-
-**Installing other browsers:**
-To install Firefox:
-```bash
-apt update
-apt install firefox
-```
-
-To install Chromium:
-```bash
-apt update
-apt install chromium-browser
-```
 
 ## Verification
 
@@ -68,7 +45,7 @@ sha256sum -c ubuntu-fs.tar.xz.sha256
 - Ubuntu Noble 24.04 LTS base system
 - Essential utilities (nano, wget, ca-certificates)
 - Pre-configured for proot environment
-- Desktop environment installer script (XFCE4, Brave Browser, TigerVNC)
+- Desktop environment installer script
 
 ## Support
 
