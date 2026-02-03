@@ -1,10 +1,10 @@
 #!/bin/bash
 # ============================================================================
-# Ubuntu Desktop Environment Installer
+# Ubuntu Desktop Environment Installer - RDP Edition
 # ============================================================================
-# This script installs XFCE4 desktop environment, VNC server, and Brave
+# This script installs XFCE4 desktop environment, xRDP server, and Brave
 # browser in the Ubuntu rootfs running under Termux.
-# Optimized for ARM64 Ubuntu Noble - Tested and Reliable.
+# Optimized for ARM64 Ubuntu Noble with RDP instead of VNC.
 # ============================================================================
 
 set -e  # Exit on error
@@ -41,7 +41,8 @@ banner() {
     echo -e "${CYAN}"
     echo "╔════════════════════════════════════════╗"
     echo "║  Ubuntu Desktop Environment Installer ║"
-    echo "║      XFCE4 + VNC + Brave Browser      ║"
+    echo "║       XFCE4 + RDP + Brave Browser     ║"
+    echo "║          EXPERIMENTAL - RDP            ║"
     echo "╚════════════════════════════════════════╝"
     echo -e "${NC}"
     echo ""
@@ -51,15 +52,24 @@ show_features() {
     echo -e "${CYAN}What You'll Get:${NC}"
     echo ""
     echo "  ✓ XFCE4 Desktop - Fast, lightweight, beautiful"
-    echo "  ✓ TigerVNC Server - Remote desktop access"
+    echo "  ✓ xRDP Server - Better performance than VNC"
     echo "  ✓ Brave Browser - Privacy-focused web browser"
     echo "  ✓ Essential Apps - File manager, terminal, text editor"
     echo "  ✓ Customized Setup - Pre-configured for Termux/Android"
     echo ""
+    echo -e "${BLUE}RDP Advantages:${NC}"
+    echo "  • Better image quality and compression"
+    echo "  • Lower bandwidth usage"
+    echo "  • Built-in sound support (when available)"
+    echo "  • Better clipboard integration"
+    echo "  • Microsoft Remote Desktop app (Android/iOS)"
+    echo ""
     echo -e "${BLUE}Installation Details:${NC}"
-    echo "  • Time Required: 20-40 minutes"
-    echo "  • Space Needed: ~2GB"
+    echo "  • Time Required: 25-45 minutes"
+    echo "  • Space Needed: ~2.5GB"
     echo "  • Internet Required: Yes (for downloading packages)"
+    echo ""
+    echo -e "${YELLOW}⚠ EXPERIMENTAL:${NC} RDP in proot is untested - VNC is stable fallback"
     echo ""
 }
 
@@ -79,7 +89,7 @@ check_space() {
     log_info "Checking available disk space..."
     
     local available=$(df -h / | awk 'NR==2 {print $4}' | sed 's/G//')
-    local required=2
+    local required=3
     
     if [ "${available%.*}" -lt "$required" ] 2>/dev/null; then
         log_warning "Low disk space detected: ${available}G available"
@@ -185,22 +195,23 @@ install_desktop() {
     log_success "Desktop environment installed ✓"
 }
 
-install_vnc() {
-    log_info "Installing VNC server..."
+install_rdp() {
+    log_info "Installing xRDP server..."
+    log_warning "This is experimental - xRDP in proot hasn't been extensively tested"
     
     export DEBIAN_FRONTEND=noninteractive
     
-    # Install VNC server and tools (tools package has vncpasswd)
+    # Install xRDP and dependencies
     apt-get install -y \
-        tigervnc-standalone-server \
-        tigervnc-common \
-        tigervnc-tools \
+        xrdp \
+        xorgxrdp \
         || {
-            log_error "VNC installation failed"
+            log_error "xRDP installation failed"
+            log_info "You may want to use VNC instead (complete_install.sh)"
             return 1
         }
     
-    log_success "VNC server installed ✓"
+    log_success "xRDP server installed ✓"
 }
 
 install_utilities() {
@@ -219,7 +230,7 @@ install_utilities() {
             return 1
         }
     
-    # Then install everything else
+    # Then install everything else (NO Firefox - Brave only)
     apt-get install -y \
         nano \
         vim \
@@ -228,7 +239,6 @@ install_utilities() {
         neofetch \
         net-tools \
         iputils-ping \
-        firefox \
         gedit \
         file-roller \
         fonts-dejavu \
@@ -252,7 +262,6 @@ install_brave() {
         https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg; then
         log_warning "Failed to download Brave keyring"
         log_info "This might be a temporary network issue"
-        log_info "Firefox will be configured as fallback browser"
         return 1
     fi
     
@@ -263,7 +272,6 @@ install_brave() {
     log_info "Updating package lists for Brave..."
     if ! apt-get update; then
         log_warning "Failed to update Brave repository"
-        log_info "Using Firefox as browser instead"
         return 1
     fi
     
@@ -271,7 +279,6 @@ install_brave() {
     if ! apt-get install -y brave-browser; then
         log_warning "Brave browser installation failed"
         log_info "This is common on some devices/networks"
-        log_info "Firefox is already installed and will be configured"
         return 1
     fi
     
@@ -282,8 +289,7 @@ configure_brave() {
     log_info "Configuring Brave for proot environment..."
     
     if ! dpkg -s brave-browser &> /dev/null; then
-        log_info "Brave not installed, Firefox will be your default browser"
-        configure_firefox
+        log_warning "Brave not installed, skipping configuration"
         return 0
     fi
     
@@ -302,17 +308,18 @@ configure_brave() {
         log_success "Patched $patched Brave desktop file(s) ✓"
     fi
     
-    # Set as default browser - Multiple methods for reliability
+    # Set as default browser
     log_info "Setting Brave as default browser..."
     
-    # Method 1: update-alternatives
+    # update-alternatives
     update-alternatives --install /usr/bin/x-www-browser x-www-browser /usr/bin/brave-browser 200 2>/dev/null || true
     update-alternatives --set x-www-browser /usr/bin/brave-browser 2>/dev/null || true
     
-    # Method 2: xdg-settings
+    # xdg-settings
+    export DISPLAY=:10
     xdg-settings set default-web-browser brave-browser.desktop 2>/dev/null || true
     
-    # Method 3: XFCE4 helpers.rc (proper format with custom command)
+    # XFCE4 helpers.rc (proper exo format)
     mkdir -p /root/.config/xfce4
     cat > /root/.config/xfce4/helpers.rc <<'HELPERS'
 WebBrowser=custom-WebBrowser
@@ -325,7 +332,7 @@ X-XFCE-Commands=/usr/bin/brave-browser --no-sandbox --test-type --disable-dev-sh
 X-XFCE-CommandsWithParameter=/usr/bin/brave-browser --no-sandbox --test-type --disable-dev-shm-usage "%s"
 HELPERS
     
-    # Method 4: mimeapps.list
+    # mimeapps.list
     mkdir -p /root/.config /root/.local/share/applications
     cat > /root/.config/mimeapps.list <<MIMEAPPS
 [Default Applications]
@@ -344,74 +351,117 @@ MIMEAPPS
     log_success "Brave configured as default browser ✓"
 }
 
-configure_firefox() {
-    log_info "Configuring Firefox as default browser..."
+configure_rdp() {
+    log_info "Configuring xRDP server for XFCE4..."
     
-    # Set Firefox as default
-    update-alternatives --install /usr/bin/x-www-browser x-www-browser /usr/bin/firefox 100 2>/dev/null || true
-    update-alternatives --set x-www-browser /usr/bin/firefox 2>/dev/null || true
+    # Neutralize systemd service (incompatible with proot)
+    log_info "Disabling systemd services (incompatible with proot)..."
     
-    # XFCE4 helpers
-    mkdir -p /root/.config/xfce4
-    cat > /root/.config/xfce4/helpers.rc <<HELPERS
-[Desktop Entry]
-WebBrowser=firefox
-HELPERS
+    # Prevent xrdp from trying to use systemd
+    if [ -f /var/lib/dpkg/info/xrdp.postinst ]; then
+        sed -i 's|systemctl|true|g' /var/lib/dpkg/info/xrdp.postinst 2>/dev/null || true
+    fi
     
-    # mimeapps.list for Firefox
-    mkdir -p /root/.config /root/.local/share/applications
-    cat > /root/.config/mimeapps.list <<MIMEAPPS
-[Default Applications]
-text/html=firefox.desktop
-x-scheme-handler/http=firefox.desktop
-x-scheme-handler/https=firefox.desktop
-x-scheme-handler/about=firefox.desktop
-x-scheme-handler/unknown=firefox.desktop
-
-[Added Associations]
-text/html=firefox.desktop
-x-scheme-handler/http=firefox.desktop
-x-scheme-handler/https=firefox.desktop
-MIMEAPPS
+    # Create xRDP session configuration for XFCE
+    mkdir -p /etc/xrdp
     
-    log_success "Firefox configured as default browser ✓"
-}
-
-configure_vnc() {
-    log_info "Configuring VNC server..."
-    
-    mkdir -p /root/.vnc
-    
-    # Create xstartup script
-    cat > /root/.vnc/xstartup <<'XSTARTUP'
+    cat > /etc/xrdp/startwm.sh <<'STARTWM'
 #!/bin/sh
-# VNC xstartup script for XFCE4
+# xRDP session startup script for XFCE4
 
+# Unset session manager
 unset SESSION_MANAGER
 unset DBUS_SESSION_BUS_ADDRESS
 
 # Start D-Bus
 if [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
-    eval $(dbus-launch --sh-syntax)
+    eval $(dbus-launch --sh-syntax --exit-with-session)
+    export DBUS_SESSION_BUS_ADDRESS
 fi
+
+# Set display
+if [ -z "$DISPLAY" ]; then
+    export DISPLAY=:10
+fi
+
+# Disable accessibility bus
+export NO_AT_BRIDGE=1
 
 # Start XFCE4
 exec startxfce4
-XSTARTUP
+STARTWM
     
-    chmod +x /root/.vnc/xstartup
-    log_success "VNC startup script created ✓"
+    chmod +x /etc/xrdp/startwm.sh
+    log_success "xRDP session script created ✓"
     
-    # Create VNC config with high resolution
-    cat > /root/.vnc/config <<CONFIG
-geometry=1920x1080
-depth=24
-dpi=96
-localhost=no
-alwaysshared
-CONFIG
+    # Configure xRDP settings
+    cat > /etc/xrdp/xrdp.ini <<'XRDPINI'
+[Globals]
+ini_version=1
+fork=true
+port=3389
+tcp_nodelay=true
+tcp_keepalive=true
+security_layer=negotiate
+crypt_level=high
+certificate=
+key_file=
+ssl_protocols=TLSv1.2, TLSv1.3
+bitmap_cache=true
+bitmap_compression=true
+max_bpp=32
+blue=009cb5
+grey=dedede
+
+[Xorg]
+name=Xorg
+lib=libxup.so
+username=ask
+password=ask
+ip=127.0.0.1
+port=-1
+code=20
+XRDPINI
     
-    log_success "VNC configured for 1920x1080 resolution ✓"
+    log_success "xRDP configured ✓"
+    
+    # Create manual start script since systemd won't work
+    cat > /usr/local/bin/start-xrdp <<'STARTRDP'
+#!/bin/bash
+# Manual xRDP starter for proot
+
+echo "Starting xRDP server..."
+
+# Create necessary directories
+mkdir -p /var/run/xrdp
+mkdir -p /var/log/xrdp
+
+# Start xrdp-sesman (session manager)
+/usr/sbin/xrdp-sesman --nodaemon &
+SESMAN_PID=$!
+
+# Give it a moment to start
+sleep 2
+
+# Start xrdp
+/usr/sbin/xrdp --nodaemon &
+XRDP_PID=$!
+
+echo "xRDP started!"
+echo "  xrdp-sesman PID: $SESMAN_PID"
+echo "  xrdp PID: $XRDP_PID"
+echo ""
+echo "Connect to: localhost:3389"
+echo "Use Microsoft Remote Desktop app"
+echo ""
+echo "To stop: kill $XRDP_PID $SESMAN_PID"
+
+# Keep script running
+wait
+STARTRDP
+    
+    chmod +x /usr/local/bin/start-xrdp
+    log_success "xRDP start script created ✓"
 }
 
 customize_xfce() {
@@ -419,7 +469,7 @@ customize_xfce() {
     
     mkdir -p /root/.config/xfce4/xfconf/xfce-perchannel-xml
     
-    # Configure XFCE4 panel for better layout
+    # Configure XFCE4 panel
     cat > /root/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml <<'PANEL'
 <?xml version="1.0" encoding="UTF-8"?>
 <channel name="xfce4-panel" version="1.0">
@@ -471,7 +521,7 @@ customize_xfce() {
 </channel>
 PANEL
     
-    # Set nice default wallpaper (XFCE's default blue)
+    # Set desktop wallpaper
     cat > /root/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml <<'DESKTOP'
 <?xml version="1.0" encoding="UTF-8"?>
 <channel name="xfce4-desktop" version="1.0">
@@ -500,7 +550,7 @@ PANEL
 </channel>
 DESKTOP
 
-    # Enable nice window manager theme
+    # Window manager theme
     cat > /root/.config/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml <<'XFWM4'
 <?xml version="1.0" encoding="UTF-8"?>
 <channel name="xfwm4" version="1.0">
@@ -528,7 +578,7 @@ DESKTOP
 </channel>
 XFWM4
 
-    # Set nice mouse cursor theme
+    # Mouse cursor theme
     cat > /root/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml <<'XSETTINGS'
 <?xml version="1.0" encoding="UTF-8"?>
 <channel name="xsettings" version="1.0">
@@ -542,30 +592,6 @@ XSETTINGS
     log_success "XFCE4 customized ✓"
 }
 
-setup_vnc_password() {
-    echo ""
-    log_info "Setting up VNC password..."
-    log_warning "You will be prompted to enter a password for VNC access"
-    echo ""
-    
-    # Check if vncpasswd exists
-    if ! command -v vncpasswd &> /dev/null; then
-        log_error "vncpasswd not found - VNC package may not have installed correctly"
-        log_warning "Try running this manually after installation:"
-        echo "  apt install tigervnc-standalone-server tigervnc-xorg-extension"
-        echo "  vncpasswd"
-        return 1
-    fi
-    
-    if vncpasswd; then
-        log_success "VNC password set ✓"
-    else
-        log_error "Failed to set VNC password"
-        log_warning "You can set it manually later with: vncpasswd"
-        return 1
-    fi
-}
-
 create_desktop_content() {
     log_info "Creating desktop shortcuts and documentation..."
     
@@ -575,26 +601,48 @@ create_desktop_content() {
     cat > /root/Desktop/README.txt <<'README'
 ╔════════════════════════════════════════╗
 ║   Welcome to Ubuntu on Termux!        ║
-║        XFCE4 Desktop Edition          ║
+║      XFCE4 Desktop - RDP Edition      ║
 ╚════════════════════════════════════════╝
 
-Your desktop environment is ready to use!
+Your desktop environment with xRDP is ready!
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   QUICK START GUIDE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. START VNC SERVER
+1. START RDP SERVER
    In the terminal, run:
-   $ vncserver
+   $ start-xrdp
 
-2. CONNECT WITH VNC VIEWER
-   • Open your VNC viewer app
-   • Connect to: localhost:5901
-   • Enter the password you set
+   Or manually:
+   $ /usr/sbin/xrdp-sesman &
+   $ /usr/sbin/xrdp &
 
-3. STOP VNC SERVER
-   $ vncserver -kill :1
+2. CONNECT WITH RDP CLIENT
+   • Download "Microsoft Remote Desktop" app
+   • Add new connection:
+     - PC name: localhost:3389
+     - Username: root
+     - Password: (your Ubuntu password)
+   • Connect!
+
+3. STOP RDP SERVER
+   $ pkill xrdp
+   $ pkill xrdp-sesman
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  RDP VS VNC
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+RDP Advantages:
+• Better image quality and compression
+• Lower bandwidth usage
+• Better clipboard integration
+• Superior performance on slow connections
+• Microsoft Remote Desktop app (excellent)
+
+RDP Port: 3389 (default)
+VNC Port: 5901 (if you use VNC instead)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   DESKTOP FEATURES
@@ -602,9 +650,9 @@ Your desktop environment is ready to use!
 
 • Applications Menu: Click the icon in top-left corner
 • File Manager: Thunar (fast and lightweight)
-• Web Browser: Brave or Firefox (pre-configured)
-• Terminal: XFCE4 Terminal (keyboard shortcut ready)
-• Text Editor: gedit (simple and clean)
+• Web Browser: Brave (pre-configured for proot)
+• Terminal: XFCE4 Terminal
+• Text Editor: gedit
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   USEFUL COMMANDS
@@ -614,121 +662,96 @@ System Management:
 $ apt update              # Update package lists
 $ apt upgrade             # Upgrade installed packages
 $ apt install <package>   # Install new software
-$ apt search <keyword>    # Search for packages
 
-VNC Management:
-$ vncserver                     # Start VNC
-$ vncserver -list               # List sessions
-$ vncserver -kill :1            # Stop display :1
-$ vncserver -geometry 1600x900  # Custom resolution
+RDP Management:
+$ start-xrdp              # Start RDP server
+$ pkill xrdp              # Stop RDP
+$ netstat -tlnp | grep 3389   # Check if RDP is running
 
 System Info:
 $ neofetch                # Show system information
 $ htop                    # System monitor
-$ df -h                   # Disk space
-$ free -h                 # Memory usage
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  CUSTOMIZATION
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Appearance:
-• Settings → Appearance → Choose theme and icons
-• Settings → Window Manager → Customize window borders
-• Right-click desktop → Desktop Settings → Wallpaper
-
-Panel:
-• Right-click panel → Panel → Panel Preferences
-• Add/remove items, change position
-• Multiple panels supported
-
-Keyboard Shortcuts:
-• Settings → Keyboard → Application Shortcuts
-• Add custom shortcuts for your favorite apps
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  RECOMMENDED VNC SETTINGS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-For Best Performance:
-• Resolution: 1600x900 or 1920x1080
-• Color Depth: 24-bit
-• Compression: Medium
-
-Recommended VNC Viewers:
-• AVNC (F-Droid) - Best for Termux
-• RealVNC Viewer (Google Play)
-• bVNC (Google Play) - Feature-rich
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   TROUBLESHOOTING
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Black screen in VNC?
-$ chmod +x ~/.vnc/xstartup
-$ vncserver -kill :*
-$ vncserver
+Can't connect to RDP?
+1. Check if xrdp is running: ps aux | grep xrdp
+2. Check port: netstat -tlnp | grep 3389
+3. Try restarting: pkill xrdp; start-xrdp
+
+Black screen?
+• Wait 10-15 seconds after connecting
+• Try disconnecting and reconnecting
+• Check ~/.xsession-errors for errors
 
 Slow performance?
-$ vncserver -geometry 1280x720  # Lower resolution
-• Close unused applications
-• Disable compositor in Settings → Window Manager Tweaks
-
-Browser won't start?
-• Brave: Already configured with --no-sandbox
-• Firefox: Alternative browser (pre-installed)
-• Check: Settings → Default Applications
-
-DNS not working?
-$ echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
+• RDP should be faster than VNC
+• Check your network connection
+• Try lower color depth in RDP client settings
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  TIPS & TRICKS
+  RECOMMENDED RDP CLIENTS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-• Use Whisker Menu for better app search
-• Pin favorite apps to the panel for quick access
-• Enable compositor for smooth animations
-  (Settings → Window Manager Tweaks)
-• Install additional themes:
-  $ apt install numix-gtk-theme papirus-icon-theme
-• Add workspaces for better organization
-• Use Clipman for clipboard history
+Android/iOS:
+• Microsoft Remote Desktop (Best)
+• RD Client (Alternative)
+
+Settings to use:
+• Resolution: 1920x1080 or lower
+• Color depth: 32-bit
+• Compression: Enabled
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Enjoy your Ubuntu desktop environment on Android!
+Enjoy your Ubuntu RDP desktop environment!
 
-For more help, visit: https://docs.xfce.org/
+Note: This is EXPERIMENTAL. If RDP doesn't work well,
+use the VNC version (complete_install.sh) instead.
 README
     
-    # Create start VNC script
-    cat > /root/Desktop/start-vnc.sh <<'VNCSCRIPT'
+    # Create start RDP script
+    cat > /root/Desktop/start-rdp.sh <<'RDPSCRIPT'
 #!/bin/bash
-# Start VNC Server
+# Start RDP Server
 
 echo "╔════════════════════════════════════════╗"
-echo "║       Starting VNC Server...          ║"
+echo "║       Starting xRDP Server...         ║"
 echo "╚════════════════════════════════════════╝"
 echo ""
 
-# Kill any existing VNC sessions first
-vncserver -kill :1 2>/dev/null
+# Kill any existing sessions
+pkill xrdp 2>/dev/null
+pkill xrdp-sesman 2>/dev/null
+sleep 1
 
-# Start with explicit high resolution
-vncserver :1 -geometry 1920x1080 -depth 24
+# Create directories
+mkdir -p /var/run/xrdp
+mkdir -p /var/log/xrdp
+
+# Start session manager
+echo "Starting xrdp-sesman..."
+/usr/sbin/xrdp-sesman &
+sleep 2
+
+# Start xrdp
+echo "Starting xrdp..."
+/usr/sbin/xrdp &
+sleep 2
 
 echo ""
-echo "✓ VNC Server started!"
+echo "✓ RDP Server started!"
 echo ""
-echo "Resolution: 1920x1080"
-echo "Connect to: localhost:5901"
+echo "Connect to: localhost:3389"
+echo "Use: Microsoft Remote Desktop app"
 echo ""
-echo "To stop VNC: vncserver -kill :1"
+echo "To stop: pkill xrdp; pkill xrdp-sesman"
 echo ""
-VNCSCRIPT
+RDPSCRIPT
     
-    chmod +x /root/Desktop/start-vnc.sh
+    chmod +x /root/Desktop/start-rdp.sh
     
     # Create system info script
     cat > /root/Desktop/system-info.sh <<'SYSINFO'
@@ -753,6 +776,16 @@ else
     echo ""
     echo "Disk Usage:"
     df -h /
+fi
+
+echo ""
+echo "RDP Status:"
+if pgrep xrdp > /dev/null; then
+    echo "  ✓ xRDP is running"
+    echo "  Port: 3389"
+else
+    echo "  ✗ xRDP is not running"
+    echo "  Start with: start-xrdp"
 fi
 
 echo ""
@@ -783,6 +816,7 @@ show_completion_message() {
     echo -e "${GREEN}╔════════════════════════════════════════╗"
     echo -e "║                                        ║"
     echo -e "║    Installation Complete! 🎉           ║"
+    echo -e "║          RDP EXPERIMENTAL              ║"
     echo -e "║                                        ║"
     echo -e "╚════════════════════════════════════════╝${NC}"
     echo ""
@@ -791,15 +825,12 @@ show_completion_message() {
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
     echo "  ✓ XFCE4 Desktop Environment"
-    echo "  ✓ TigerVNC Server"
+    echo "  ✓ xRDP Server (port 3389)"
     
-    # Check which browser is actually installed
     if dpkg -s brave-browser &> /dev/null; then
         echo "  ✓ Brave Browser (default)"
-        echo "  ✓ Firefox (backup browser)"
     else
-        echo "  ✓ Firefox (default browser)"
-        echo "  ℹ Brave installation failed - Firefox configured instead"
+        echo "  ✗ Brave Browser installation failed"
     fi
     
     echo "  ✓ File Manager (Thunar)"
@@ -811,34 +842,37 @@ show_completion_message() {
     echo -e "${BLUE}  Next Steps${NC}"
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
-    echo -e "  ${YELLOW}1.${NC} Start VNC server:"
-    echo -e "     ${GREEN}vncserver${NC}"
+    echo -e "  ${YELLOW}1.${NC} Start RDP server:"
+    echo -e "     ${GREEN}start-xrdp${NC}"
     echo ""
-    echo -e "  ${YELLOW}2.${NC} Open your VNC Viewer app and connect to:"
-    echo -e "     ${GREEN}localhost:5901${NC}"
+    echo -e "  ${YELLOW}2.${NC} Download Microsoft Remote Desktop app:"
+    echo "     • Android: Play Store"
+    echo "     • iOS: App Store"
     echo ""
-    echo -e "  ${YELLOW}3.${NC} When done, stop VNC:"
-    echo -e "     ${GREEN}vncserver -kill :1${NC}"
+    echo -e "  ${YELLOW}3.${NC} Connect to:"
+    echo -e "     ${GREEN}localhost:3389${NC}"
+    echo "     Username: root"
+    echo "     Password: (your password)"
+    echo ""
+    echo -e "  ${YELLOW}4.${NC} To stop RDP:"
+    echo -e "     ${GREEN}pkill xrdp; pkill xrdp-sesman${NC}"
     echo ""
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${BLUE}  Quick Tips${NC}"
+    echo -e "${BLUE}  Important Notes${NC}"
     echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
-    echo "  • Check Desktop/README.txt for detailed guide"
-    echo "  • Use Desktop/start-vnc.sh for easy VNC startup"
-    echo "  • Recommended VNC apps: AVNC, RealVNC Viewer"
-    echo "  • Default resolution: 1920x1080 (adjustable)"
-    
-    # Add note about Brave if it failed
-    if ! dpkg -s brave-browser &> /dev/null; then
-        echo ""
-        echo -e "${YELLOW}  Note: Brave installation failed due to network/repo issues${NC}"
-        echo "  You can try installing it later with:"
-        echo "  apt install brave-browser"
-    fi
-    
+    echo -e "${YELLOW}⚠ EXPERIMENTAL:${NC} xRDP in proot is untested"
+    echo "  • If it doesn't work well, use VNC instead"
+    echo "  • RDP should give better quality/performance"
+    echo "  • Check Desktop/README.txt for troubleshooting"
     echo ""
-    echo -e "${GREEN}Enjoy your new desktop environment!${NC}"
+    echo -e "${BLUE}RDP Advantages:${NC}"
+    echo "  • Better compression and image quality"
+    echo "  • Lower bandwidth usage"
+    echo "  • Better clipboard integration"
+    echo "  • Superior performance"
+    echo ""
+    echo -e "${GREEN}Test it out and let us know how it performs!${NC}"
     echo ""
 }
 
@@ -883,20 +917,18 @@ main() {
     fi
     
     install_desktop
-    install_vnc
+    install_rdp
     install_utilities
     
-    # Try to install Brave, fall back to Firefox
+    # Try to install Brave
     if install_brave; then
         configure_brave
     else
-        log_info "Using Firefox as your web browser"
-        configure_firefox
+        log_warning "Continuing without Brave - you can install it later"
     fi
     
-    configure_vnc
+    configure_rdp
     customize_xfce
-    setup_vnc_password
     create_desktop_content
     cleanup
     
