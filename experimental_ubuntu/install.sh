@@ -5,7 +5,6 @@
 # This script downloads and installs a pre-built Ubuntu Noble root filesystem
 # in Termux on ARM64 Android devices.
 # ============================================================================
-
 set -e  # Exit on error
 set -u  # Exit on undefined variable
 
@@ -230,7 +229,6 @@ create_launcher() {
 # ============================================================================
 # Ubuntu Launcher for Termux
 # ============================================================================
-
 set -e
 
 INSTALL_DIR="ubuntu-fs"
@@ -292,7 +290,6 @@ create_welcome_message() {
     
     cat > "$INSTALL_DIR/root/.bashrc" <<'BASHRC'
 # Ubuntu on Termux - .bashrc
-
 # If not running interactively, don't do anything
 [[ $- != *i* ]] && return
 
@@ -306,10 +303,10 @@ NC='\033[0m'
 # Welcome message (only on interactive login)
 if [ -f /root/.show_welcome ]; then
     clear
-    echo -e "${GREEN}╔════════════════════════════════════════╗"
+    echo -e "${GREEN}╔═══════════════════════════════════════╗"
     echo -e "║   Welcome to Ubuntu Noble 24.04 LTS   ║"
     echo -e "║        Running on Termux/Android      ║"
-    echo -e "╚════════════════════════════════════════╝${NC}"
+    echo -e "╚═══════════════════════════════════════╝${NC}"
     echo ""
     echo -e "${BLUE}Quick Start:${NC}"
     echo "  • Install desktop: /root/complete_install.sh"
@@ -333,7 +330,6 @@ alias cleanup='apt autoremove -y && apt clean'
 HISTSIZE=10000
 HISTFILESIZE=20000
 HISTCONTROL=ignoredups:erasedups
-
 BASHRC
 
     touch "$INSTALL_DIR/root/.show_welcome"
@@ -343,9 +339,9 @@ BASHRC
 show_completion_message() {
     clear
     echo ""
-    echo -e "${GREEN}╔════════════════════════════════════════╗"
+    echo -e "${GREEN}╔═══════════════════════════════════════╗"
     echo -e "║     Installation Complete! 🎉         ║"
-    echo -e "╚════════════════════════════════════════╝${NC}"
+    echo -e "╚═══════════════════════════════════════╝${NC}"
     echo ""
     echo -e "${BLUE}Next Steps:${NC}"
     echo ""
@@ -378,7 +374,6 @@ cleanup_on_error() {
 trap cleanup_on_error ERR
 
 # --- MAIN EXECUTION ---
-
 main() {
     banner
     check_architecture
