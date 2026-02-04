@@ -44,7 +44,8 @@ sha256sum -c ubuntu-fs.tar.xz.sha256
 
 - Ubuntu Noble 24.04 LTS base system
 - **Ubuntu Commander v1.3** Desktop Installer (`complete_install.sh`)
-- **New:** `start-xrdp` utility for managing xRDP sessions
+- **High-Performance X11 Support:** Integrated Termux:X11 configuration for best performance.
+- **New:** `start-xrdp` utility for managing xRDP sessions.
 - **New:** `diagnose-xrdp` tool for troubleshooting
 - Essential utilities (nano, wget, ca-certificates)
 - Pre-configured for proot environment

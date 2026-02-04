@@ -4,7 +4,7 @@
 # ============================================================================
 # Interactive installer with choice of:
 #   Desktop: XFCE4 or MATE
-#   Protocol: VNC, Termux:X11, or Both
+#   Protocol: VNC, Termux:X11 (High Performance), or Both
 # ============================================================================
 
 set -e
