@@ -47,7 +47,7 @@ banner() {
     clear
     echo "========================================"
     echo "   Ubuntu on Termux Installer"
-    echo "   Version: 1.2"
+    echo "   Version: 1.3"
     echo "========================================"
     echo ""
 }

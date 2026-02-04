@@ -1,4 +1,4 @@
-# Ubuntu Noble RootFS for Termux
+# Ubuntu Noble RootFS for Termux (Commander v1.3)
 
 This is a pre-built Ubuntu Noble (24.04 LTS) ARM64 root filesystem for use with Termux on Android devices.
 
@@ -43,9 +43,11 @@ sha256sum -c ubuntu-fs.tar.xz.sha256
 ## What's Included
 
 - Ubuntu Noble 24.04 LTS base system
+- **Ubuntu Commander v1.3** Desktop Installer (`complete_install.sh`)
+- **New:** `start-xrdp` utility for managing xRDP sessions
+- **New:** `diagnose-xrdp` tool for troubleshooting
 - Essential utilities (nano, wget, ca-certificates)
 - Pre-configured for proot environment
-- Desktop environment installer script
 
 ## Support
 

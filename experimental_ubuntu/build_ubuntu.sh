@@ -291,6 +291,34 @@ copy_post_install() {
     fi
 }
 
+copy_utils() {
+    log_info "Copying utility scripts..."
+    
+    local utils_dir="utils"
+    local dest_dir="./$ROOTFS_DIR/usr/local/bin"
+    
+    # Ensure destination exists
+    sudo mkdir -p "$dest_dir"
+    
+    # Copy start-xrdp
+    if [ -f "$utils_dir/start-xrdp-improved.sh" ]; then
+        sudo cp "$utils_dir/start-xrdp-improved.sh" "$dest_dir/start-xrdp"
+        sudo chmod +x "$dest_dir/start-xrdp"
+        log_success "start-xrdp installed"
+    else
+        log_warning "start-xrdp-improved.sh not found in utils/"
+    fi
+    
+    # Copy diagnose-xrdp
+    if [ -f "$utils_dir/diagnose-xrdp.sh" ]; then
+        sudo cp "$utils_dir/diagnose-xrdp.sh" "$dest_dir/diagnose-xrdp"
+        sudo chmod +x "$dest_dir/diagnose-xrdp"
+        log_success "diagnose-xrdp installed"
+    else
+        log_warning "diagnose-xrdp.sh not found in utils/"
+    fi
+}
+
 run_setup_in_chroot() {
     log_info "Entering proot environment to configure system..."
     log_warning "You may see some errors - this is normal in QEMU/proot"
@@ -426,6 +454,7 @@ main() {
     bootstrap_ubuntu
     create_setup_script
     copy_post_install
+    copy_utils
     run_setup_in_chroot
     create_tarball
     create_readme
