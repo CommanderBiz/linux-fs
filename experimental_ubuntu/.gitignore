@@ -1,0 +1,4 @@
+ubuntu-rootfs/
+*.tar.xz
+wget-log*
+*.log
