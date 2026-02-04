@@ -6,6 +6,7 @@
 # in Termux on ARM64 Android devices.
 # ============================================================================
 
+
 set -e  # Exit on error
 set -u  # Exit on undefined variable
 
