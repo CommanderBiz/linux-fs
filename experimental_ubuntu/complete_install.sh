@@ -4,7 +4,7 @@
 # ============================================================================
 # Interactive installer with choice of:
 #   Desktop: XFCE4 or MATE
-#   Protocol: VNC, Termux:X11 (High Performance), or Both
+#   Protocol: VNC, Termux:X11, or Both
 # ============================================================================
 
 set -e
@@ -147,7 +147,14 @@ confirm_installation() {
     
     read -p "Proceed? (y/N): " -n 1 -r
     echo
-    [[ ! $REPLY =~ ^[Yy]$ ]] && exit 0
+    echo ""
+    
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        log_info "Installation cancelled"
+        exit 0
+    fi
+    
+    log_success "Starting installation..."
 }
 
 # === SETUP FUNCTIONS ===
@@ -383,10 +390,6 @@ main() {
     banner
     choose_configuration
     confirm_installation
-    
-    echo ""
-    log_info "Starting installation..."
-    echo ""
     
     setup_system || { log_error "Setup failed"; exit 1; }
     install_base || { log_error "Base install failed"; exit 1; }
