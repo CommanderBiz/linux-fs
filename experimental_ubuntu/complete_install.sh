@@ -275,89 +275,137 @@ CFG
 configure_x11() {
     log_info "Configuring Termux:X11..."
     
-    # X11 startup for XFCE
-    if [ "$DESKTOP_ENV" = "xfce" ]; then
-        cat > /usr/local/bin/start-x11 <<'X11'
+    # Create the comprehensive launch-x11 script
+    cat > /usr/local/bin/launch-x11 <<'X11LAUNCHER'
 #!/bin/bash
-# Start XFCE4 with Termux:X11
+# All-in-One X11 Launcher for Ubuntu Commander
+# Starts desktop with Termux:X11
 
-# Kill any existing sessions
-pkill -f startxfce4 2>/dev/null
+echo "╔════════════════════════════════════════════════════╗"
+echo "║   Ubuntu Commander - Termux:X11 Launcher          ║"
+echo "╚════════════════════════════════════════════════════╝"
+echo ""
 
-# Wait for X11 to be ready
-echo "Waiting for Termux:X11..."
-for i in {1..10}; do
-    if [ -e /tmp/.X11-unix/X0 ]; then
-        echo "X11 display detected!"
-        break
-    fi
-    sleep 1
-done
-
-# Set display
-export DISPLAY=:0
-export XDG_RUNTIME_DIR=${TMPDIR}
-export PULSE_SERVER=127.0.0.1
-
-# Start D-Bus if not running
-if [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
-    eval $(dbus-launch --sh-syntax --exit-with-session)
-    export DBUS_SESSION_BUS_ADDRESS
+# Step 1: Check if we're in Termux proot
+if [ ! -d "/data/data/com.termux" ]; then
+    echo "[!] Not running in Termux environment"
+    exit 1
 fi
 
-# Launch XFCE4
-echo "Starting XFCE4..."
-startxfce4 &
+echo "[1/4] Checking Termux:X11 server..."
 
-echo ""
-echo "XFCE4 started!"
-echo "Check the Termux:X11 app for your desktop"
-echo ""
-X11
-    else
-        # X11 startup for MATE
-        cat > /usr/local/bin/start-x11 <<'X11'
-#!/bin/bash
-# Start MATE with Termux:X11
+# Check if X11 is already running
+if [ -e /tmp/.X11-unix/X0 ]; then
+    echo "      [✓] Termux:X11 server detected"
+else
+    echo "      [!] Termux:X11 not running"
+    echo ""
+    echo "═══════════════════════════════════════════════════"
+    echo "SETUP REQUIRED:"
+    echo "═══════════════════════════════════════════════════"
+    echo ""
+    echo "1. Switch to Termux (swipe from notification bar)"
+    echo "2. Run: termux-x11 :0 -ac &"
+    echo "3. Return here and run: launch-x11"
+    echo ""
+    echo "Or use VNC instead: vncserver"
+    echo ""
+    exit 1
+fi
 
-# Kill any existing sessions
+echo "[2/4] Setting up environment..."
+
+# Set environment
+export DISPLAY=:0
+export XDG_RUNTIME_DIR=/tmp/runtime-root
+export PULSE_SERVER=127.0.0.1
+
+mkdir -p "$XDG_RUNTIME_DIR"
+chmod 700 "$XDG_RUNTIME_DIR"
+
+echo "      [✓] Display: $DISPLAY"
+echo "      [✓] Runtime dir: $XDG_RUNTIME_DIR"
+
+echo "[3/4] Starting D-Bus..."
+
+# Kill old D-Bus and start fresh
+pkill -f dbus-daemon 2>/dev/null
+sleep 1
+
+eval $(dbus-launch --sh-syntax)
+export DBUS_SESSION_BUS_ADDRESS
+
+echo "      [✓] D-Bus started"
+
+echo "[4/4] Launching desktop..."
+
+# Kill existing desktop sessions
 pkill -f mate-session 2>/dev/null
+pkill -f startxfce4 2>/dev/null
+sleep 1
 
-# Wait for X11 to be ready
-echo "Waiting for Termux:X11..."
-for i in {1..10}; do
-    if [ -e /tmp/.X11-unix/X0 ]; then
-        echo "X11 display detected!"
-        break
-    fi
-    sleep 1
-done
-
-# Set display
-export DISPLAY=:0
-export XDG_RUNTIME_DIR=${TMPDIR}
-export PULSE_SERVER=127.0.0.1
-
-# Start D-Bus if not running
-if [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
-    eval $(dbus-launch --sh-syntax --exit-with-session)
-    export DBUS_SESSION_BUS_ADDRESS
+# Detect and start the appropriate desktop
+if command -v mate-session &> /dev/null; then
+    echo "      Starting MATE..."
+    nohup env DISPLAY=:0 \
+        XDG_RUNTIME_DIR=/tmp/runtime-root \
+        DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS \
+        mate-session > /tmp/desktop.log 2>&1 &
+    DESKTOP="MATE"
+elif command -v startxfce4 &> /dev/null; then
+    echo "      Starting XFCE4..."
+    nohup env DISPLAY=:0 \
+        XDG_RUNTIME_DIR=/tmp/runtime-root \
+        DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS \
+        startxfce4 > /tmp/desktop.log 2>&1 &
+    DESKTOP="XFCE4"
+else
+    echo "      [!] No desktop found!"
+    exit 1
 fi
 
-# Launch MATE
-echo "Starting MATE..."
-mate-session &
+sleep 4
 
-echo ""
-echo "MATE started!"
-echo "Check the Termux:X11 app for your desktop"
-echo ""
-X11
-    fi
+# Check if running
+if pgrep -f "mate-session|startxfce4" > /dev/null; then
+    echo ""
+    echo "╔════════════════════════════════════════════════════╗"
+    echo "║            ✓ Desktop Started Successfully!         ║"
+    echo "╚════════════════════════════════════════════════════╝"
+    echo ""
+    echo "Desktop: $DESKTOP"
+    echo "Display: :0"
+    echo ""
+    echo "NEXT STEP:"
+    echo "  Open Termux:X11 app from your app drawer"
+    echo "  Your $DESKTOP desktop should appear!"
+    echo ""
+    echo "If you see a blank screen:"
+    echo "  • Wait 10-15 seconds for desktop to load"
+    echo "  • Check logs: cat /tmp/desktop.log"
+    echo "  • Try: pkill $DESKTOP && launch-x11"
+    echo ""
+    echo "To stop desktop:"
+    echo "  pkill mate-session  (or: pkill startxfce4)"
+    echo ""
+else
+    echo ""
+    echo "[!] Desktop failed to start"
+    echo ""
+    echo "Troubleshooting:"
+    echo "  • Check logs: cat /tmp/desktop.log"
+    echo "  • Verify X11: ls -la /tmp/.X11-unix/"
+    echo "  • Try VNC instead: vncserver"
+    echo ""
+fi
+X11LAUNCHER
     
-    chmod +x /usr/local/bin/start-x11
+    chmod +x /usr/local/bin/launch-x11
     
-    log_success "X11 configured ✓"
+    # Also create a simple start-x11 alias for backwards compatibility
+    ln -sf /usr/local/bin/launch-x11 /usr/local/bin/start-x11
+    
+    log_success "X11 launcher configured ✓"
 }
 
 install_brave() {
@@ -387,9 +435,12 @@ create_desktop_content() {
     if [ "$DISPLAY_PROTOCOL" = "vnc" ] || [ "$DISPLAY_PROTOCOL" = "both" ]; then
         cat > /root/Desktop/start-vnc.sh <<'VNCS'
 #!/bin/bash
+echo "Starting VNC Server..."
 vncserver -kill :1 2>/dev/null
 vncserver :1 -geometry 1920x1080 -depth 24
-echo "VNC started! Connect to localhost:5901"
+echo ""
+echo "✓ VNC started!"
+echo "Connect to: localhost:5901"
 VNCS
         chmod +x /root/Desktop/start-vnc.sh
     fi
@@ -397,9 +448,19 @@ VNCS
     if [ "$DISPLAY_PROTOCOL" = "x11" ] || [ "$DISPLAY_PROTOCOL" = "both" ]; then
         cat > /root/Desktop/start-x11.sh <<'X11S'
 #!/bin/bash
-echo "Starting X11..."
-echo "Launch Termux:X11 app now, then run:"
-echo "  start-x11"
+echo "════════════════════════════════════════"
+echo "  Termux:X11 Quick Start"
+echo "════════════════════════════════════════"
+echo ""
+echo "1. Switch to Termux"
+echo "2. Run: termux-x11 :0 -ac &"
+echo "3. Come back here and run: launch-x11"
+echo ""
+echo "Or just run: launch-x11"
+echo "(It will tell you what to do)"
+echo ""
+read -p "Press Enter to launch now, or Ctrl+C to exit..."
+launch-x11
 X11S
         chmod +x /root/Desktop/start-x11.sh
     fi
@@ -418,22 +479,71 @@ README
     if [ "$DISPLAY_PROTOCOL" = "vnc" ] || [ "$DISPLAY_PROTOCOL" = "both" ]; then
         cat >> /root/Desktop/README.txt <<README
 
-VNC:
-  1. Run: vncserver
+═══════════════════════════════════════
+VNC (Universal - Any Device):
+═══════════════════════════════════════
+
+  1. Start: vncserver
   2. Connect to: localhost:5901
   3. Stop: vncserver -kill :1
+
+  Use any VNC viewer app (AVNC, RealVNC, etc)
+  Resolution: 1920x1080 HD
 README
     fi
     
     if [ "$DISPLAY_PROTOCOL" = "x11" ] || [ "$DISPLAY_PROTOCOL" = "both" ]; then
         cat >> /root/Desktop/README.txt <<README
 
-Termux:X11:
-  1. In Termux: termux-x11 :0 &
-  2. Launch Termux:X11 app
-  3. In Ubuntu: start-x11
+═══════════════════════════════════════
+Termux:X11 (Best Performance):
+═══════════════════════════════════════
+
+  In Termux:
+    termux-x11 :0 -ac &
+  
+  In Ubuntu:
+    launch-x11
+  
+  Then open Termux:X11 app from app drawer
+
+  Commands:
+    launch-x11  - Start desktop with X11
+    start-x11   - Alias for launch-x11
+    
+  Requires Termux:X11 app installed
+  (Get it from GitHub or F-Droid)
 README
     fi
+
+    cat >> /root/Desktop/README.txt <<README
+
+═══════════════════════════════════════
+Tips:
+═══════════════════════════════════════
+
+  • Brave browser is pre-configured
+  • Both protocols can run simultaneously
+  • X11 has better performance than VNC
+  • VNC works from any device
+  
+═══════════════════════════════════════
+Troubleshooting:
+═══════════════════════════════════════
+
+  X11 blank screen:
+    - Wait 10-15 seconds
+    - Check: cat /tmp/desktop.log
+    - Restart: pkill mate-session && launch-x11
+
+  VNC issues:
+    - Check: vncserver -list
+    - Restart: vncserver -kill :1 && vncserver
+
+═══════════════════════════════════════
+
+Enjoy Ubuntu Commander! 🚀
+README
     
     log_success "Desktop content created ✓"
 }
@@ -494,13 +604,25 @@ main() {
     echo ""
     
     if [ "$DISPLAY_PROTOCOL" = "vnc" ] || [ "$DISPLAY_PROTOCOL" = "both" ]; then
-        echo -e "${BLUE}VNC:${NC} vncserver → localhost:5901"
+        echo -e "${BLUE}To start VNC:${NC}"
+        echo "  vncserver"
+        echo "  Connect to: localhost:5901"
+        echo ""
     fi
+    
     if [ "$DISPLAY_PROTOCOL" = "x11" ] || [ "$DISPLAY_PROTOCOL" = "both" ]; then
-        echo -e "${BLUE}X11:${NC} start-x11 (after launching Termux:X11 app)"
+        echo -e "${BLUE}To start Termux:X11:${NC}"
+        echo "  1. In Termux: termux-x11 :0 -ac &"
+        echo "  2. In Ubuntu: launch-x11"
+        echo "  3. Open Termux:X11 app"
+        echo ""
     fi
+    
+    echo -e "${CYAN}Quick Commands:${NC}"
+    [ "$DISPLAY_PROTOCOL" = "vnc" ] || [ "$DISPLAY_PROTOCOL" = "both" ] && echo "  vncserver       - Start VNC"
+    [ "$DISPLAY_PROTOCOL" = "x11" ] || [ "$DISPLAY_PROTOCOL" = "both" ] && echo "  launch-x11      - Start X11 desktop"
     echo ""
-    echo -e "${GREEN}Check /root/Desktop/README.txt for details!${NC}"
+    echo -e "${GREEN}Check /root/Desktop/README.txt for full guide!${NC}"
     echo ""
 }
 
