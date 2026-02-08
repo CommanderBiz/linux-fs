@@ -279,17 +279,79 @@ configure_x11() {
     if [ "$DESKTOP_ENV" = "xfce" ]; then
         cat > /usr/local/bin/start-x11 <<'X11'
 #!/bin/bash
+# Start XFCE4 with Termux:X11
+
+# Kill any existing sessions
+pkill -f startxfce4 2>/dev/null
+
+# Wait for X11 to be ready
+echo "Waiting for Termux:X11..."
+for i in {1..10}; do
+    if [ -e /tmp/.X11-unix/X0 ]; then
+        echo "X11 display detected!"
+        break
+    fi
+    sleep 1
+done
+
+# Set display
 export DISPLAY=:0
+export XDG_RUNTIME_DIR=${TMPDIR}
 export PULSE_SERVER=127.0.0.1
-exec dbus-launch --exit-with-session startxfce4
+
+# Start D-Bus if not running
+if [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
+    eval $(dbus-launch --sh-syntax --exit-with-session)
+    export DBUS_SESSION_BUS_ADDRESS
+fi
+
+# Launch XFCE4
+echo "Starting XFCE4..."
+startxfce4 &
+
+echo ""
+echo "XFCE4 started!"
+echo "Check the Termux:X11 app for your desktop"
+echo ""
 X11
     else
         # X11 startup for MATE
         cat > /usr/local/bin/start-x11 <<'X11'
 #!/bin/bash
+# Start MATE with Termux:X11
+
+# Kill any existing sessions
+pkill -f mate-session 2>/dev/null
+
+# Wait for X11 to be ready
+echo "Waiting for Termux:X11..."
+for i in {1..10}; do
+    if [ -e /tmp/.X11-unix/X0 ]; then
+        echo "X11 display detected!"
+        break
+    fi
+    sleep 1
+done
+
+# Set display
 export DISPLAY=:0
+export XDG_RUNTIME_DIR=${TMPDIR}
 export PULSE_SERVER=127.0.0.1
-exec dbus-launch --exit-with-session mate-session
+
+# Start D-Bus if not running
+if [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
+    eval $(dbus-launch --sh-syntax --exit-with-session)
+    export DBUS_SESSION_BUS_ADDRESS
+fi
+
+# Launch MATE
+echo "Starting MATE..."
+mate-session &
+
+echo ""
+echo "MATE started!"
+echo "Check the Termux:X11 app for your desktop"
+echo ""
 X11
     fi
     
